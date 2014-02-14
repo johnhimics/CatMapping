@@ -1,0 +1,49 @@
+.treeArea { 
+    width: 1200px;
+    margin: 0 auto;
+    min-height: 300px;
+    text-align: center;    
+}
+
+#tree-container {
+    margin: 0 auto 0 auto;
+    padding: 0 auto 0 auto;
+    -ms-user-select: none;
+    user-select: none;
+    display: inline-block;
+    text-align: center;
+}
+/*treeDiv */
+.treeDiv {
+    margin: 0 20px 0 20px;
+    padding: 50px;
+    width: 300px;
+    max-height: 600px;
+    min-height: 600px;
+    background: white;
+    overflow-y: scroll;
+    position: relative;  /* ie7 fix */
+    text-align: left;
+    }
+
+.info-container {
+    margin: 200px auto auto auto;
+    padding: 20px;
+    width: 150px;
+    display: inline-block;
+    text-align: center;
+    vertical-align: top;
+}
+
+.map {
+    width: 800px;
+    display: inline-block;
+    max-height: 300px;
+    min-height: 300px;
+}
+
+/* spinner animation? 
+.jqtree-tree .jqtree-loading > div .jqtree-title:after {
+    content: url(spinner.gif);
+    margin-left: 8px;
+} */

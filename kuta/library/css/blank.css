@@ -1,0 +1,7 @@
+/* override the margin for 'blank' type pages */
+#left_layout #main_content.container-fluid {
+    margin-left: 10px;
+}
+
+/* override the margin for 'blank' type pages */
+#header.navbar {margin:10px 10px 0 10px;}
