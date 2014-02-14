@@ -1,11 +1,3 @@
-Category Mapping Project
-
-Author: John Himics
-
-Test server available at: 
-	http://johntestarea.x10.mx/otw/kuta/index.html
-
-Instructions.txt
 Category Mapping App Instructions
 -----------------------------------
 
