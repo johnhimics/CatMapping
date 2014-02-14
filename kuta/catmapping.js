@@ -17,8 +17,8 @@
 var LAZYLOADINGTHRESHHOLD = 3000, CHILDPAGINGTHRESHHOLD = 100, CHILDPAGESIZE = 25; 
 var CSEROOTURL = "../api/v1.0/csecategories/";
 var CSECHILDURL = "../api/v1.0/csecategory/";
-var CATROOTURL = "";
-var CATCHILDURL = "";
+var CATROOTURL = "../api/v1.0/categories";
+var CATCHILDURL = "../api/v1.0/category/";
 
 $('document').ready( function() {
 
@@ -73,6 +73,27 @@ var TreeColl = Backbone.Collection.extend({
 		that.reset(); //to fire the reset event. empties the collection
 	}
 });
+
+var CatTreeColl = TreeColl.extend({
+	initialize: function(props) {
+		var that = this;
+		that.rootURL = props.rootURL;
+		that.childURL = props.childURL;
+		that.id = props.id,
+		that.url = that.rootURL;
+
+		/*console.log("TreeColl init");
+		console.log("Child Url")
+		console.log(that.childURL);
+		console.log("Root Url");
+		console.log(that.rootURL);
+		console.log(that.url);*/
+
+		that.fetch({success: function(c, r) {
+			//pass
+		}});
+	},
+})
 
 
 // Tree View - Renders the tree
@@ -238,24 +259,32 @@ var viewCseSelect = new SelectView({
 	el : "#cseselect",
 	collection : cseselectcoll,
 });
-var viewCatSelect = new SelectView({
+/*var viewCatSelect = new SelectView({
 	el: "#catselect",
 	collection: categoryselectcoll,
-});
+});*/
 
 //CSE Tree variables
 var csetreecoll = new TreeColl({
 	childURL: CSECHILDURL,
 	rootURL: CSEROOTURL,
 	id: 2
-})
-
+});
 var cseview = new TreeView({
 	coll : csetreecoll,
 	selectTag : "#cseselect",
 	el: "#csetree"
-})
-
+});
+var cattreecoll = new CatTreeColl({
+	childURL: CATCHILDURL,
+	rootURL: CATROOTURL,
+	id: 1
+});
+var catview = new TreeView({
+	coll : cattreecoll,
+	selectTag : "#catselect",
+	el: "#cattree"
+});
 
 //*** ROUTER
 //declare the backbone router
@@ -269,7 +298,7 @@ var router = new Router();
 router.on('route:home', function() {
     console.log("The home page has loaded.");
     //render functions
-    viewCatSelect.render();
+    //viewCatSelect.render();
     viewCseSelect.render();
     cseview.render();
 });
