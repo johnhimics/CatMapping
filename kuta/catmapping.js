@@ -26,6 +26,8 @@
     var CSESTATSURL = "../api/v1.0/csecategorystats/";
     var CATROOTURL = "../api/v1.0/categories";
     var CATCHILDURL = "../api/v1.0/category/";
+    var MAPSTATSURL = "../api/v1.0/mappingstats/"; //<cse_id::integer> GET
+    var MAPURL = "../api/v1.0/mapping/"; //<cse_id::integer> GET or POST or DELETE
 
     /* This is the preferred onDocumentReady syntax for jQuery at the moment. */
     $(function () {
@@ -42,8 +44,6 @@
         }
 
 	});
-
-
 	// Tree Collection - represents the tree
 	var TreeCollection = Backbone.Collection.extend({
         model: TreeNode,
@@ -102,9 +102,8 @@
             console.log("total nodes: " + that.TOTALNODES);
             
             //testing the new fetch functions
-
-            //that.fetchRoot();
-            //that.fetchChildren();
+            //that.fetchRoot(callback);
+            //that.fetchChildren(82868, callback);
 
             if(lazyLoadEnabled) {
             
@@ -113,16 +112,16 @@
                 if(childPagingEnabled) {
                     // get the first page of root nodes
                     console.log("Lazy and Child Lazy");
-                    that.fetch({success: function() {if(callback) {callback();};}});
+                    that.fetchRoot(callback);
                 } else {
                     //get all the root nodes
                     console.log("Lazy but not child lazy");
-                    that.fetch({success: function() {if(callback) {callback();};}});
+                    that.fetchRoot(callback);
                 }
             
             } else {
                 console.log("I'm NOT lazy!'")
-                that.fetch({success: function() {if(callback) {callback();};}});
+                that.fetchRoot(callback);
             }
             
         }, //Implementation of lazy loading
@@ -137,24 +136,26 @@
                     };
                 }}
                 );
-        },
+        },//function to fetch the root URL
         
         fetchChildren: function(child, callback) {
             console.log("FETCH CHILDREN CALLED");
             if(child) {
                 //fetch only that child
+                console.log("fetch a single child");
                 this.url = this.childURL + this.id + "/" + child;
+                console.log(this.url);
             
                 this.fetch(
                     {success: function() {          //success function
-                        console.log("fetched");
+                        console.log("fetched child");
                         if(callback) {
                         callback();
                         };
                     }}
                     );
             } else {
-                console.log("in the else statement");
+                console.log("fetch all children");
                 // fetch all children
                 this.url = this.childURL + this.id + "/";
                 /*var dirList = $.get(this.url, function (data) {
@@ -174,7 +175,7 @@
                     }}
                     );*/
             }
-        }  
+        }  // Function to handle lazy-loading of childnodes 
         
 	});
 
@@ -191,7 +192,6 @@
             }});
         },
 	});
-
 
 	// Tree View - Renders the tree
 	var TreeView = Backbone.View.extend({
@@ -291,7 +291,85 @@
 
 	});
 
-
+    //*** MAPPING STRUCTURES
+    
+    var MapModel = Backbone.Model.extend({
+        //defaults
+        yourcategory_id: 0,
+        cse_id: 0,
+        csecategory_id: 0,
+        
+        initialize: function() {
+            //pass
+            console.log("MapModel Init");
+        }
+    });
+    
+    var MapCollection = Backbone.Collection.extend({
+        model: MapModel,
+        
+        //defaults 
+        url: "",
+        statsURL: "",
+        cse_id: 0,
+        total_mappings: 0,
+        
+        initialize: function(props) {
+            console.log("MapCollection init");
+            // constructor values
+            this.cse_id = props.cse;
+            this.url = props.mapurl + this.cse_id;
+            console.log(this.url);
+            this.statsURL = props.statsURL;
+            
+            //this.getStats(); //get the stats
+            
+            this.fetch({success: function () {
+                console.log("mapcoll fetch success");
+            }});
+        },
+        
+        getStats: function (callback) {
+            var that = this;
+            var stats = $.getJSON(that.statsURL, function() {
+                that.total_mappings = stats.responseJSON.total_mappings;
+                if(callback) {callback();};
+                }
+            );
+        },
+    });
+    
+    var MapView = Backbone.View.extend({
+        //defaults
+        collection : {},
+        el : "",
+        
+        initialize: function(props) {
+            console.log("MapView init");
+            this.collection = props.collection;
+            //this.listenTo(this.collection, )  //event binding
+            this.el = props.el;  
+            
+            this.render();
+        },
+        
+        render: function () {
+            console.log("MAPPING RENDER FUNCTION");
+            var that = this;
+            that.collection.fetch({
+                success: function(c, r) {
+                    //***render the template***
+                    console.log("Map Collection Models");
+                    console.log(r);
+                    var source = $("#mapTemplate").html();
+                    var output = Mustache.render(source, that.collection.models);
+                    $(that.el).html(output);
+                }
+            });
+        }
+    
+    });
+    
 	//*** DROPDOWN STRUCTURES
 	var DropDownColl = Backbone.Collection.extend({
         initialize: function(props){
@@ -306,7 +384,6 @@
 	}); //Collection for the select tags
 
 	var SelectView = Backbone.View.extend({
-
         attributes : function () {
             return {
                 el : this.get('el'),
@@ -316,19 +393,19 @@
         }, //enable the constructor`
 
         initialize: function() {
-            $("#cseselect").change(choiceMade); //workaround for change event
-            $("#catselect").change(choiceMade);
+            $("#cseselect").change(this.choiceMade); //workaround for change event
+            $("#catselect").change(this.choiceMade);
         },
 
         render: function() {
             var that = this;
             that.collection.fetch({
-                        success: function() {
-                            //***render the template***
-                            var source = $("#selectTemplate").html();
-                            var output = Mustache.render(source, that.collection.models);
-                            $(that.el).html(output);
-                        }
+                success: function() {
+                    //***render the template***
+                    var source = $("#selectTemplate").html();
+                    var output = Mustache.render(source, that.collection.models);
+                    $(that.el).html(output);
+                }
             });
         },
 
@@ -338,19 +415,19 @@
 
         test: function() {
             console.log("test");
-        }
+        },
+        
+        choiceMade : function(e) {
+            //This is when the select tag is used
+            /*      console.log("choiceMade");
+             console.log(e);
+             console.log(e.target.name);*/
+            var index = e.target.selectedIndex;
+            var selectedName = e.target.options[index].label;
+
+            return true;
+        } // function that handles selections in the dropdowns
 	}); // view that handles the select tags
-
-	var choiceMade = function(e) {
-        //This is when the select tag is used
-        /*      console.log("choiceMade");
-         console.log(e);
-         console.log(e.target.name);*/
-        var index = e.target.selectedIndex;
-        var selectedName = e.target.options[index].label;
-
-        return true;
-	}; // function that handles selections in the dropdowns
 
 	//*** VARIABLES
 	//Dropdown variables
@@ -361,7 +438,7 @@
         collection : cseselectcoll
 	});
 
-	//CSE Tree variables
+	// Tree variables
 	var cseTreeCollection = new TreeCollection({
         childURL: CSECHILDURL,
         rootURL: CSEROOTURL,
@@ -383,7 +460,17 @@
         selectTag : "#catselect",
         el: "#cattree"
 	});
-
+    var mapTreeCollection = new MapCollection({
+        mapurl : MAPURL,
+        statsURL : MAPSTATSURL,
+        cse: 24
+    });
+    var mapView = new MapView({
+        el : "#tree3",
+        collection : mapTreeCollection    
+    });
+    
+    
 	//*** ROUTER
 	//declare the backbone router
 	var Router = Backbone.Router.extend( {
@@ -399,6 +486,8 @@
         //viewCatSelect.render();
         viewCseSelect.render();
         cseview.render();
+        catview.render();
+        mapView.render();
 	});
 
 	Backbone.history.start(); 

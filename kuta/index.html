@@ -228,10 +228,27 @@
     <!-- Templates -->
     <script type="text/template" id="selectTemplate">
     	{{#.}}
-    	<option value={{id}}> {{attributes.name}} </option>
+            <option value={{id}}> {{attributes.name}} </option>
     	{{/.}}
 	</script> <!-- The select template -->
-
+    
+    <script type="text/template" id="mapTemplate">
+        
+        <table class="table table-striped table-condensed">
+            <tr>
+                <th>CSE Category</th>
+                <th>Your Category</th>
+                <th>Delete?</th>
+            </tr>
+            {{#.}}
+            <tr>
+                <th>{{attributes.csecategory_id}}</th>
+                <th>{{attributes.yourcategory_id}}</th>
+                <th><a href="#">Delete</a></th>
+            </tr>
+            {{/.}}
+        </table>
+    </script>
 
     </div>
 	<!-- ./ post wrapper -->
