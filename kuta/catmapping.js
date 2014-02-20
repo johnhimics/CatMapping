@@ -104,8 +104,9 @@
             //testing the new fetch functions
             //that.fetchRoot(callback);
             //that.fetchChildren(82868, callback);
+            that.lazyload(callback, 82868);
 
-            if(lazyLoadEnabled) {
+            /*if(lazyLoadEnabled) {
             
                 console.log("Lazy Loading Enabled!");
                 
@@ -122,9 +123,32 @@
             } else {
                 console.log("I'm NOT lazy!'")
                 that.fetchRoot(callback);
-            }
+            }*/
             
         }, //Implementation of lazy loading
+        
+        lazyload: function(callback, child) {
+            var that = this;
+            
+            that.url = that.rootURL + that.id;
+            console.log(that);
+            
+            this.fetch({ success: function () { 
+                if(child) {
+                    that.url = that.childURL + that.id + "/" + child;
+                    console.log(that.url);
+                    console.log(that);
+                    that.fetch({reset: false, 
+                        success: function() {
+                        if(callback) { console.log("CHILD FETCH SUCCESS"); callback();}
+                        },
+                        error: function() { console.log("CHILD FAIL"); callback();}
+                    })
+                } else {
+                    if(callback) { callback(); }
+                }
+            }});
+        }, //fetch the root and a single child file. currently erases the root when fetching the child.
         
         fetchRoot: function(callback) {            
             this.url = this.rootURL + this.id
@@ -255,6 +279,7 @@
             var data = [];
             var rootNodes = that.collection.where({parent_id: 0});
             console.log(rootNodes);
+            console.log(that);
             _.each(rootNodes, 
                            (function (c) {
                    var children = that.recurHelper(c.get("id"));
@@ -301,7 +326,6 @@
         
         initialize: function() {
             //pass
-            console.log("MapModel Init");
         }
     });
     
@@ -359,8 +383,6 @@
             that.collection.fetch({
                 success: function(c, r) {
                     //***render the template***
-                    console.log("Map Collection Models");
-                    console.log(r);
                     var source = $("#mapTemplate").html();
                     var output = Mustache.render(source, that.collection.models);
                     $(that.el).html(output);
@@ -460,15 +482,15 @@
         selectTag : "#catselect",
         el: "#cattree"
 	});
-    var mapTreeCollection = new MapCollection({
+    /*var mapTreeCollection = new MapCollection({
         mapurl : MAPURL,
         statsURL : MAPSTATSURL,
-        cse: 24
+        cse: 24 //hardcoded for the example
     });
     var mapView = new MapView({
         el : "#tree3",
         collection : mapTreeCollection    
-    });
+    });*/
     
     
 	//*** ROUTER
@@ -485,9 +507,9 @@
         //render functions
         //viewCatSelect.render();
         viewCseSelect.render();
-        cseview.render();
-        catview.render();
-        mapView.render();
+        //cseview.render();
+        //catview.render();
+        //mapView.render();
 	});
 
 	Backbone.history.start(); 
