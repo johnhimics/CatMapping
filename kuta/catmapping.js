@@ -104,7 +104,7 @@
             //testing the new fetch functions
             //that.fetchRoot(callback);
             //that.fetchChildren(82868, callback);
-            that.lazyload(callback, 82868);
+            that.lazyload(callback);
 
             /*if(lazyLoadEnabled) {
             
@@ -149,57 +149,6 @@
                 }
             }});
         }, //fetch the root and a single child file. currently erases the root when fetching the child.
-        
-        fetchRoot: function(callback) {            
-            this.url = this.rootURL + this.id
-            this.fetch(
-                {success: function() {          //success function
-                    console.log("fetched");
-                    if(callback) {
-                    callback();
-                    };
-                }}
-                );
-        },//function to fetch the root URL
-        
-        fetchChildren: function(child, callback) {
-            console.log("FETCH CHILDREN CALLED");
-            if(child) {
-                //fetch only that child
-                console.log("fetch a single child");
-                this.url = this.childURL + this.id + "/" + child;
-                console.log(this.url);
-            
-                this.fetch(
-                    {success: function() {          //success function
-                        console.log("fetched child");
-                        if(callback) {
-                        callback();
-                        };
-                    }}
-                    );
-            } else {
-                console.log("fetch all children");
-                // fetch all children
-                this.url = this.childURL + this.id + "/";
-                /*var dirList = $.get(this.url, function (data) {
-                    console.log(data);
-                    _.each(data, function (){
-                        console.log(value); 
-                    })
-                    });*/
-                
-                
-                /*this.fetch(
-                    {success: function() {          //success function
-                        console.log("fetched");
-                        if(callback) {
-                        callback();
-                        };
-                    }}
-                    );*/
-            }
-        }  // Function to handle lazy-loading of childnodes 
         
 	});
 
@@ -249,7 +198,8 @@
         events: {
             //pass
             "tree.select" : "treeSelect",
-            "tree.open" : "treeOpen"
+            "tree.open" : "treeOpen",
+            "tree.click" : "treeClick"
             //"change this.collection" : "collectionChanged"
         },
 
@@ -284,6 +234,7 @@
                            (function (c) {
                    var children = that.recurHelper(c.get("id"));
                    var root = {"label": c.get("name"),
+                                            "id" : c.get("id"),
                                            "children" : children};
                    data.push(root);
                            }), 
@@ -299,6 +250,7 @@
                            (function (c) { 
                    var children = that.recurHelper(c.get("id"));
                    var child = {"label": c.get("name"),
+                        "id" : c.get("id"),
                         "children" : children};
                    data.push(child);
                            }), 
@@ -312,6 +264,28 @@
 
         treeOpen : function() {
             console.log("Tree Open event caught");
+        },
+        
+        treeClick : function (e) {
+            //prevent the default selection
+            e.preventDefault();
+            
+            console.log("Tree Clicked");
+            console.log(e.node.id);
+            
+            //determine if the node is clickable
+            var node = e.node;
+            var id = e.node.id;
+            var nodeArray = this.collection.where({id: id});
+            var mappable = nodeArray[0].attributes.is_mappable
+            
+            //select the node if mappable
+            if (mappable) {
+                this.$el.tree('selectNode', node);
+                console.log("Node Selected");
+            } else {
+                console.log("Node NOT selected");
+            }
         }
 
 	});
@@ -482,7 +456,7 @@
         selectTag : "#catselect",
         el: "#cattree"
 	});
-    /*var mapTreeCollection = new MapCollection({
+    var mapTreeCollection = new MapCollection({
         mapurl : MAPURL,
         statsURL : MAPSTATSURL,
         cse: 24 //hardcoded for the example
@@ -490,7 +464,7 @@
     var mapView = new MapView({
         el : "#tree3",
         collection : mapTreeCollection    
-    });*/
+    });
     
     
 	//*** ROUTER
@@ -509,7 +483,7 @@
         viewCseSelect.render();
         //cseview.render();
         //catview.render();
-        //mapView.render();
+        mapView.render();
 	});
 
 	Backbone.history.start(); 
