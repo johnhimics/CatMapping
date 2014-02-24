@@ -75,7 +75,6 @@
         },
 
         update: function(id, callback) {
-            console.log("update called");
             var that = this;
             that.id = id;
             that.url = that.rootURL + that.id;
@@ -98,9 +97,6 @@
             var lazyLoadEnabled = that.TOTALNODES > LAZYLOADINGTHRESHHOLD;
             var childPagingEnabled = (lazyLoadEnabled &&
                                       that.MAXCHILDNODES > CHILDPAGINGTHRESHHOLD)
-            console.log("lazy load enabled: " + lazyLoadEnabled);
-            console.log("total nodes: " + that.TOTALNODES);
-            
             //testing the new fetch functions
             //that.fetchRoot(callback);
             //that.fetchChildren(82868, callback);
@@ -131,13 +127,10 @@
             var that = this;
             
             that.url = that.rootURL + that.id;
-            console.log(that);
             
             this.fetch({ success: function () { 
                 if(child) {
                     that.url = that.childURL + that.id + "/" + child;
-                    console.log(that.url);
-                    console.log(that);
                     that.fetch({reset: false, 
                         success: function() {
                         if(callback) { console.log("CHILD FETCH SUCCESS"); callback();}
@@ -172,11 +165,13 @@
         collection : {},
         selectTag : "",
         el : "",
+        selectedElement : "",
 
         initialize: function(props) {
             this.collection = props.coll;
             this.listenTo(this.collection, "reset", this.collectionChanged);
             this.selectTag = props.selectTag;
+            this.selectedElement = props.selectedElement;
             this.el = props.el;
             //workaround for select tag event
             $(this.selectTag).change({that: this}, this.selected);
@@ -189,36 +184,29 @@
 
         render: function() {
             //get tree data
-            console.log("Tree render function");
             var treedata = this.getTreeData();
             //pass tree data to tree
             this.$el.tree('loadData', treedata);
         },
 
         events: {
-            //pass
             "tree.select" : "treeSelect",
             "tree.open" : "treeOpen",
             "tree.click" : "treeClick"
-            //"change this.collection" : "collectionChanged"
         },
 
         selected : function(e) {
             var that = e.data.that;
             var selected = e.target.value;
             that.collection.update(
-                    selected, 
-                    function() {
-                        console.log("callback successful!"); //test callback, can be removed
-                    });
+                    selected 
+                    );
         }, // function called with the <select> tag selects something new
 
         collectionChanged : function(e) {
             var that = this;
-            console.log("CollectionChanged function");
             that.collection.getStats(function () {
                 that.collection.load( function() {
-                                    console.log("Loaded callback");
                                     that.render();
                                 });
             });
@@ -228,8 +216,6 @@
             var that = this;
             var data = [];
             var rootNodes = that.collection.where({parent_id: 0});
-            console.log(rootNodes);
-            console.log(that);
             _.each(rootNodes, 
                            (function (c) {
                    var children = that.recurHelper(c.get("id"));
@@ -240,7 +226,7 @@
                            }), 
                            that);
             return data;
-        },
+        }, // Builds the tree data, uses recurHelper
 
         recurHelper : function(parent_id) {
             var that = this;
@@ -256,40 +242,53 @@
                            }), 
                            that);
             return data;
-        },
+        }, // recursive function to build tree data
 
         treeSelect : function() {
-            console.log("Tree Select event caught");
+            //console.log("Tree Select event caught");
         },
 
         treeOpen : function() {
-            console.log("Tree Open event caught");
+            //console.log("Tree Open event caught");
         },
         
         treeClick : function (e) {
             //prevent the default selection
             e.preventDefault();
-            
-            console.log("Tree Clicked");
-            console.log(e.node.id);
-            
+
             //determine if the node is clickable
             var node = e.node;
             var id = e.node.id;
             var nodeArray = this.collection.where({id: id});
             var mappable = nodeArray[0].attributes.is_mappable
-            
+
             //select the node if mappable
             if (mappable) {
                 this.$el.tree('selectNode', node);
-                console.log("Node Selected");
+                $(this.selectedElement).html(node.name);
             } else {
-                console.log("Node NOT selected");
+                // nothing
             }
         }
-
 	});
 
+    var CatTreeView = TreeView.extend({
+        events : {
+            "tree.select" : "treeSelect",
+            "tree.open" : "treeOpen",
+            "tree.select": "treeSelect"
+        },
+    
+        treeSelect : function (e) {
+            var node = e.node;
+            if(node !== null) {
+                $(this.selectedElement).html(node.name);
+            } else {
+                $(this.selectedElement).html("Nothing Selected");
+            }
+        } // over-ridden to select and deselect without looking at is_mappable
+    })
+    
     //*** MAPPING STRUCTURES
     
     var MapModel = Backbone.Model.extend({
@@ -313,18 +312,14 @@
         total_mappings: 0,
         
         initialize: function(props) {
-            console.log("MapCollection init");
             // constructor values
             this.cse_id = props.cse;
             this.url = props.mapurl + this.cse_id;
-            console.log(this.url);
             this.statsURL = props.statsURL;
             
             //this.getStats(); //get the stats
             
-            this.fetch({success: function () {
-                console.log("mapcoll fetch success");
-            }});
+            this.fetch();
         },
         
         getStats: function (callback) {
@@ -341,35 +336,59 @@
         //defaults
         collection : {},
         el : "",
+        button : "",
+        cse: {},
+        cat: {}, // References to the cse and category views
+        selectTag: "", //reference to the select tag
         
         initialize: function(props) {
-            console.log("MapView init");
             this.collection = props.collection;
-            //this.listenTo(this.collection, )  //event binding
+            //this.listenTo(this.collection, "add", this.render);  //event binding
             this.el = props.el;  
+            this.button = props.button;
+            this.cse = props.cse;
+            this.cat = props.cat;
+            this.selectTag = props.selectTag;
+            //this.listenTo($(this.button), 'click', this.buttonClick);
+            $(this.button).click({that: this}, this.buttonClick);
+            var that = this;
+            that.collection.fetch({
+                success: function(c,r) {
+                    that.render();
+                }
+            });
             
-            this.render();
         },
         
         render: function () {
-            console.log("MAPPING RENDER FUNCTION");
             var that = this;
-            that.collection.fetch({
-                success: function(c, r) {
-                    //***render the template***
-                    var source = $("#mapTemplate").html();
-                    var output = Mustache.render(source, that.collection.models);
-                    $(that.el).html(output);
-                }
-            });
+            var source = $("#mapTemplate").html();
+            var output = Mustache.render(source, that.collection.models);
+            $(that.el).html(output);
+        },
+        
+        events : {
+            //this.button : "buttonClick"
+        },
+        
+        buttonClick : function(e) {
+            var that = e.data.that;
+            var selectedCSE = that.cse.$el.tree('getSelectedNode');
+            var selectedCat = that.cat.$el.tree('getSelectedNode');
+            
+            var parentID = parseInt($(that.selectTag + " option:selected").val());
+            
+            var newMapping = {"yourcategory_id" : selectedCat.id,
+                              "cse_id" : parentID,
+                              "csecategory_id" : selectedCSE.id};
+            var newModel = that.collection.create(newMapping);
+            that.render();
         }
-    
     });
     
 	//*** DROPDOWN STRUCTURES
 	var DropDownColl = Backbone.Collection.extend({
         initialize: function(props){
-            console.log("DropDownColl init");
             this.url = props.url;
             var that = this;
 
@@ -404,20 +423,8 @@
                 }
             });
         },
-
-        events: {
-            // onchange event wouldn't work here
-        },
-
-        test: function() {
-            console.log("test");
-        },
         
         choiceMade : function(e) {
-            //This is when the select tag is used
-            /*      console.log("choiceMade");
-             console.log(e);
-             console.log(e.target.name);*/
             var index = e.target.selectedIndex;
             var selectedName = e.target.options[index].label;
 
@@ -444,17 +451,19 @@
 	var cseview = new TreeView({
         coll : cseTreeCollection,
         selectTag : "#cseselect",
-        el: "#csetree"
+        el: "#csetree",
+        selectedElement: "#activeCSE"
 	});
 	var catTreeCollection = new CatTreeCollection({
         childURL: CATCHILDURL,
         rootURL: CATROOTURL,
         id: 1
 	});
-	var catview = new TreeView({
+	var catview = new CatTreeView({
         coll : catTreeCollection,
         selectTag : "#catselect",
-        el: "#cattree"
+        el: "#cattree",
+        selectedElement: "#activeCat"
 	});
     var mapTreeCollection = new MapCollection({
         mapurl : MAPURL,
@@ -463,9 +472,12 @@
     });
     var mapView = new MapView({
         el : "#tree3",
-        collection : mapTreeCollection    
+        collection : mapTreeCollection,
+        button : "#mappingButton",
+        cse : cseview,
+        cat : catview,
+        selectTag : "#cseselect"
     });
-    
     
 	//*** ROUTER
 	//declare the backbone router
@@ -477,7 +489,6 @@
 
 	var router = new Router();
 	router.on('route:home', function() {
-        console.log("The home page has loaded.");
         //render functions
         //viewCatSelect.render();
         viewCseSelect.render();

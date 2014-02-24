@@ -18,8 +18,8 @@
     margin: 0 20px 0 20px;
     padding: 50px;
     width: 300px;
-    max-height: 600px;
-    min-height: 600px;
+    max-height: 400px;
+    min-height: 400px;
     background: white;
     overflow-y: scroll;
     position: relative;  /* ie7 fix */
