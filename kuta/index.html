@@ -240,14 +240,22 @@
                 <th>Your Category</th>
                 <th>Delete?</th>
             </tr>
-            {{#.}}
+            {{#data}}
             <tr>
                 <th>{{attributes.csecategory_id}}</th>
                 <th>{{attributes.yourcategory_id}}</th>
                 <th><a href="#">Delete</a></th>
             </tr>
-            {{/.}}
+            {{/data}}
+
         </table>
+        <div style="width:100%; text-align: center;">
+            <button id="btnprev" class="btn btn-info MappingPageLink">Prev</button>
+            {{#pages}}
+            <button id="btn{{.}}" class="btn btn-info MappingPageLink">{{.}}</button>
+            {{/pages}}
+            <button id="btnnext" class="btn btn-info MappingPageLink">Next</button>
+        </div>
     </script>
 
     </div>

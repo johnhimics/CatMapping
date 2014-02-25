@@ -8,10 +8,13 @@
  * CSE tree created (no lazy loading)
  * 
  *
- *
- *
- *
- *
+ * TODO:    Replace IDs with Names in the mapping table
+ *          Add pages to the mapping table    
+ *          Lazy-loading, once API is built
+ *          Make sure mappings save properly, once API is built
+ *          Fix dropdown constructors
+            Delete Mapping functionality
+            
  */
 
 
@@ -340,6 +343,9 @@
         cse: {},
         cat: {}, // References to the cse and category views
         selectTag: "", //reference to the select tag
+        page: 1,
+        items_per_page: 50,
+        pages: 0,
         
         initialize: function(props) {
             this.collection = props.collection;
@@ -354,6 +360,9 @@
             var that = this;
             that.collection.fetch({
                 success: function(c,r) {
+                    console.log(r);
+                    that.pages = Math.floor((r.length / that.items_per_page)) + 1;
+                    console.log(r.length + " " + that.items_per_page + " " + that.pages);
                     that.render();
                 }
             });
@@ -363,12 +372,41 @@
         render: function () {
             var that = this;
             var source = $("#mapTemplate").html();
-            var output = Mustache.render(source, that.collection.models);
+            var pages = [];
+            for (var counter = 1; counter <= that.pages; counter++) {
+                pages.push(counter);
+            }
+            var tableData = 
+                {data : that.collection.models.slice((that.page-1)*that.items_per_page,(that.page)*that.items_per_page),
+                 pages : pages, 
+                 btnclick: that.btnclick };
+                 
+            var output = Mustache.render(source, 
+                tableData,
+                ((this.page)*this.items_per_page));
             $(that.el).html(output);
+            
+            //map the buttons
+            for (var index in tableData.pages) {
+                $('#btn'+tableData.pages[index]).click({page: tableData.pages[index], that: that}, 
+                                                        that.btnclick);
+            }
+            $('#btnnext').click({page: 'next', that: that}, 
+                                that.btnclick);
+            $('#btnprev').click({page: 'prev', that: that}, 
+                                that.btnclick);
         },
         
-        events : {
-            //this.button : "buttonClick"
+        btnclick : function(e) {
+            var that = e.data.that;
+            if (e.data.page === 'next') {
+                if ((that.page + 1) <= that.pages) {that.page = that.page + 1;} //replace with num of pages
+            } else if (e.data.page === 'prev') {
+                if ((that.page - 1) >= 1) {that.page = that.page - 1;} //replace with num of pages
+            } else {
+                that.page = e.data.page;
+            }
+            that.render();
         },
         
         buttonClick : function(e) {
@@ -494,7 +532,6 @@
         viewCseSelect.render();
         //cseview.render();
         //catview.render();
-        mapView.render();
 	});
 
 	Backbone.history.start(); 
