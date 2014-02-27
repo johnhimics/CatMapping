@@ -8,13 +8,16 @@
  * CSE tree created (no lazy loading)
  * 
  *
- * TODO:    Replace IDs with Names in the mapping table
- *          Add pages to the mapping table    
+ * TODO:    
  *          Lazy-loading, once API is built
  *          Make sure mappings save properly, once API is built
- *          Fix dropdown constructors
-            Delete Mapping functionality
-            
+ *          Delete Mapping functionality
+ *
+ *
+ *
+ *
+ *
+ * 
  */
 
 
@@ -55,7 +58,7 @@
         childURL: "",
         statsURLroot: "",
         statsURL: "",
-        id: 2,
+        id: 24,
         url: this.rootURL + this.id,
         TOTALNODES: 100,
         MAXCHILDNODES: 20,
@@ -82,8 +85,13 @@
             that.id = id;
             that.url = that.rootURL + that.id;
             that.statsURL = that.statsURLroot + that.id;
-            that.reset(); //to fire the reset event. empties the collection
+            that.getStats(function () {
+                that.load(function() {
+                            that.trigger("reset"); //to fire the reset event.
+                            });
+                        });
         },
+        
         
         getStats: function (callback) {
             var that = this;
@@ -172,7 +180,7 @@
 
         initialize: function(props) {
             this.collection = props.coll;
-            this.listenTo(this.collection, "reset", this.collectionChanged);
+            this.listenTo(this.collection, "reset", this.render);
             this.selectTag = props.selectTag;
             this.selectedElement = props.selectedElement;
             this.el = props.el;
@@ -208,11 +216,7 @@
 
         collectionChanged : function(e) {
             var that = this;
-            that.collection.getStats(function () {
-                that.collection.load( function() {
-                                    that.render();
-                                });
-            });
+            that.render();
         }, // function called when the collection is updated
 
         getTreeData : function() {
@@ -310,6 +314,7 @@
         
         //defaults 
         url: "",
+        rooturl: "",
         statsURL: "",
         cse_id: 0,
         total_mappings: 0,
@@ -317,12 +322,17 @@
         initialize: function(props) {
             // constructor values
             this.cse_id = props.cse;
-            this.url = props.mapurl + this.cse_id;
+            this.rooturl = props.mapurl;
+            this.setURL(this.cse_id);
             this.statsURL = props.statsURL;
             
-            //this.getStats(); //get the stats
+            this.getStats(); //get the stats
             
             this.fetch();
+        },
+        
+        setURL : function(id) {
+            this.url = this.rooturl + id; 
         },
         
         getStats: function (callback) {
@@ -356,13 +366,12 @@
             this.cat = props.cat;
             this.selectTag = props.selectTag;
             //this.listenTo($(this.button), 'click', this.buttonClick);
-            $(this.button).click({that: this}, this.buttonClick);
+            $(this.button).click({that: this}, this.buttonClick); //Mapping Button
+            this.listenTo(this.cse.collection, "reset", this.collectionChanged);
             var that = this;
             that.collection.fetch({
                 success: function(c,r) {
-                    console.log(r);
                     that.pages = Math.floor((r.length / that.items_per_page)) + 1;
-                    console.log(r.length + " " + that.items_per_page + " " + that.pages);
                     that.render();
                 }
             });
@@ -372,12 +381,45 @@
         render: function () {
             var that = this;
             var source = $("#mapTemplate").html();
+            that.pages = Math.floor((that.collection.length / that.items_per_page)) + 1;
             var pages = [];
             for (var counter = 1; counter <= that.pages; counter++) {
                 pages.push(counter);
             }
+            console.log(pages.length + " Pages");
+            var names = [];
+            $.each(that.collection.slice((that.page-1)*
+                        that.items_per_page,(that.page)*that.items_per_page),
+                    function (index, model) {
+                        var cseid = model.get("csecategory_id");
+                        var catid = model.get("yourcategory_id");
+                        var csename = "";
+                        var placeholder = that.cse.collection.where({id: parseInt(cseid, 10)})[0]
+                        if (typeof(placeholder) !== "undefined") {
+                            csename = placeholder.attributes.name;
+                        } else {
+                            csename = "Name Undefined";
+                            console.log("Placeholder was undefined");
+                        }
+                        var catname = "";
+                        placeholder = that.cat.collection.where({id: parseInt(catid, 10)})[0]
+                        if (typeof(placeholder) !== "undefined") {
+                            catname = placeholder.attributes.name;
+                        } else {
+                            catname = "Name Undefined";
+                            console.log("Placeholder was undefined");
+                        }
+
+                        var nameObj = {csecategory_id: cseid,
+                                   cse_id: model.get("cse_id"),
+                                   yourcategory_id: catid,
+                                   cse_name: csename,
+                                   cat_name: catname
+                                   };
+                    names.push(nameObj);
+                   });
             var tableData = 
-                {data : that.collection.models.slice((that.page-1)*that.items_per_page,(that.page)*that.items_per_page),
+                {data : names,
                  pages : pages, 
                  btnclick: that.btnclick };
                  
@@ -421,6 +463,19 @@
                               "csecategory_id" : selectedCSE.id};
             var newModel = that.collection.create(newMapping);
             that.render();
+        },
+        
+        collectionChanged : function() {
+            // fires when the cse collection has been reset (dropdown used)
+            this.collection.setURL(this.cse.collection.id);
+            this.collection.getStats();
+            var that = this;
+            that.collection.fetch({
+                success: function(c,r) {
+                    that.pages = Math.floor((r.length / that.items_per_page)) + 1;
+                    that.render();
+                }
+            });
         }
     });
     
@@ -472,8 +527,8 @@
 
 	//*** VARIABLES
 	//Dropdown variables
-	var cseselectcoll = new DropDownColl({url: "../api/v1.0/cse"}); // constructor isn't working
-	var categoryselectcoll = new DropDownColl({url: "../api/v1.0/categories"}); // constructor isn't working
+	var cseselectcoll = new DropDownColl({url: "../api/v1.0/cse"});
+	var categoryselectcoll = new DropDownColl({url: "../api/v1.0/categories"});
 	var viewCseSelect = new SelectView({
         el : "#cseselect",
         collection : cseselectcoll
@@ -506,7 +561,7 @@
     var mapTreeCollection = new MapCollection({
         mapurl : MAPURL,
         statsURL : MAPSTATSURL,
-        cse: 24 //hardcoded for the example
+        cse: 2
     });
     var mapView = new MapView({
         el : "#tree3",
