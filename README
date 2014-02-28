@@ -195,16 +195,7 @@ ACCESS POINT: api/v1.0/category
 
           METHOD: GET
              URL: api/v1.0/categories
-          PARAMS: page_number, page_size
-
-
-ACCESS POINT: api/v1.0/category/<parent_id::integer>
-
-  - Retrieves an array of child categories for the "your categories" tree.
-
-          METHOD: GET
-             URL: api/v1.0/category/<parent_id::integer>
-          PARAMS: page_number, page_size
+          PARAMS: page_number, page_size, parent_id
 
 
 --- cse categories ---
@@ -217,22 +208,13 @@ ACCESS POINT: api/v1.0/csecategorystats/<parent_id::integer>
              URL: api/v1.0/csecategorystats/<parent_id::integer>
 
 
-ACCESS POINT: api/v1.0/csecategories/<cse_id::integer>
-
-  - Retrieves an array of categories for a cse.
-
-          METHOD: GET
-             URL: api/v1.0/csecategory
-          PARAMS: page_number, page_size
-
-
-ACCESS POINT: api/v1.0/csecategory/<cse_id::integer>/<parent_id::integer>
+ACCESS POINT: api/v1.0/csecategory/<cse_id::integer>
 
   - Retrieves an array of child categories for a csecategory.
 
           METHOD: GET
-             URL: api/v1.0/csecategory/<parent_id::integer>
-          PARAMS: page_number, page_size
+             URL: api/v1.0/csecategories/<cse_id::integer>
+          PARAMS: page_number, page_size, parent_id
 
 
 --- mappings ---
