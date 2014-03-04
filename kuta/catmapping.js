@@ -518,13 +518,14 @@
                 this.collection.getStats();
                 var that = this;
                 spinner.spin(spintarget);
-                that.collection.fetch({
+                aRequest = that.collection.fetch({
                     success: function (c, r) {
                         that.pages = Math.floor((r.length / that.items_per_page)) + 1;
                         that.render();
                         spinner.stop();
                     }
                 });
+                request.push(aRequest);
             }
         });
 
