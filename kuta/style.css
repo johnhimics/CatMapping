@@ -27,12 +27,20 @@
     }
 
 .info-container {
-    margin: 200px auto auto auto;
+    margin: 100px auto auto auto;
     padding: 20px;
     width: 150px;
+    height: 100%;
     display: inline-block;
     text-align: center;
     vertical-align: top;
+}
+
+#spinnerDIV {
+    width:10px;
+    height:100px;
+    text-align:center;
+    margin:0 auto;
 }
 
 .map {

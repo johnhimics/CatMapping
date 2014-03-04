@@ -170,11 +170,12 @@
             </div>
         </div>
         <div class="info-container">
+            <div id="spinnerDIV" class="spinner"> <br> </div>
         	<p><b>CSE Selected</b></p>
         	<p id="activeCSE">Nothing Selected</p>
         	<p><b>Category Selected</b></p>
         	<p id="activeCat">Nothing Selected</p>
-        	<button id="mappingButton">Map These Two</button>
+        	<button class="btn btn-info" id="mappingButton">Map These Two</button>
     	</div>
         <div id="tree-container">
             <h2>Your Categories</h2>
@@ -192,7 +193,7 @@
         </div>
         <div id="tree-container">
             <h2>Mappings</h2>
-            <div id="tree3" class="treeDiv map">
+            <div id="MappingTable" class="treeDiv map">
             	<!--insert a table here-->
             	<p> Loading Mappings </p>
             </div>
@@ -206,7 +207,8 @@
     <!--JQuery-->
     <!--This JQuery replaces the one at the bottom of the file. needed for jqTree -->
     <script type="text/javascript" src="library/js/lib/jquery-1.11.0.min.js"></script>
-    
+    <!--Spin.js-->
+    <script type="text/javascript" src="library/js/lib/spin.min.js"></script>
     <!-- Mustache.js / Handlebars.js -->
     <script type="text/javascript" src="library/js/lib/mustache.js"></script>
     <!--Backbone script files -->

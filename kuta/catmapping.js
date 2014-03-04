@@ -13,7 +13,7 @@
  * TODO:    Loading spinner
  *          Lazy-loading, once API is built
  *          Make sure mappings save properly, once API is built
- *          Delete Mapping functionality
+ *          tree mapping enabled functionality
  *
  *
  *
@@ -25,19 +25,50 @@
 /*jslint nomen: true */
 /*jslint browser: true*/
 /*jslint vars: true */
-/*globals $, jQuery, _, Backbone, console, Mustache*/
+/*globals $, jQuery, _, Backbone, console, Mustache, Spinner*/
+
+
+
 
 /* This closure keeps your globals from leaking into the global
  * namespace but still makes them available to all of the code in the
  * app. */
 (function ($, _) {
     "use strict";
+    /*Spin.js for initial loading*/
+    var opts = {
+      lines: 10, // The number of lines to draw
+      length: 25, // The length of each line
+      width: 8, // The line thickness
+      radius: 30, // The radius of the inner circle
+      corners: 1, // Corner roundness (0..1)
+      rotate: 0, // The rotation offset
+      direction: 1, // 1: clockwise, -1: counterclockwise
+      color: '#000', // #rgb or #rrggbb or array of colors
+      speed: 1, // Rounds per second
+      trail: 20, // Afterglow percentage
+      shadow: false, // Whether to render a shadow
+      hwaccel: false, // Whether to use hardware acceleration
+      className: 'spinner', // The CSS class to assign to the spinner
+      zIndex: 2e9, // The z-index (defaults to 2000000000)
+      top: 'auto', // Top position relative to parent in px
+      left: 'auto' // Left position relative to parent in px
+    };
+    var aRequest;
+    var requests = [];
+    var spintarget = document.getElementById('spinnerDIV');
+    var spinner = new Spinner(opts)
+    spinner.spin(spintarget);
+    
     // GLOBAL VARIABLES
     var LAZYLOADINGTHRESHHOLD = 800, CHILDPAGINGTHRESHHOLD = 100, CHILDPAGESIZE = 25,
-        CSEROOTURL = "../api/v1.0/csecategories/", CSECHILDURL = "../api/v1.0/csecategory/", CSESTATSURL = "../api/v1.0/csecategorystats/",
-        CATROOTURL = "../api/v1.0/categories", CATCHILDURL = "../api/v1.0/category/",
-        MAPSTATSURL = "../api/v1.0/mappingstats/", //<cse_id::integer> GET
-        MAPURL = "../api/v1.0/mapping/"; //<cse_id::integer> GET or POST or DELETE
+        CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
+        CSECHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategory/",
+        CSESTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategorystats/",
+        CATROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/categories",
+        CATCHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/category/",
+        MAPSTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mappingstats/", //<cse_id::integer> GET
+        MAPURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mapping/"; //<cse_id::integer> GET or POST or DELETE
 
     /* This is the preferred onDocumentReady syntax for jQuery at the moment. */
     $(function () {
@@ -54,6 +85,7 @@
             }
 
         });
+
         // Tree Collection - represents the tree
         var TreeCollection = Backbone.Collection.extend({
             model: TreeNode,
@@ -62,7 +94,7 @@
             childURL: "",
             statsURLroot: "",
             statsURL: "",
-            id: 24,
+            id: 2,
             url: this.rootURL + this.id,
             TOTALNODES: 100,
             MAXCHILDNODES: 20,
@@ -89,9 +121,11 @@
                 that.id = id;
                 that.url = that.rootURL + that.id;
                 that.statsURL = that.statsURLroot + that.id;
+                //spinner.spin(spintarget);
                 that.getStats(function () {
                     that.load(function () {
                         that.trigger("reset"); //to fire the reset event.
+                        //spinner.stop();
                     });
                 });
             },
@@ -112,9 +146,7 @@
                 var lazyLoadEnabled = that.TOTALNODES > LAZYLOADINGTHRESHHOLD;
                 var childPagingEnabled = (lazyLoadEnabled &&
                                           that.MAXCHILDNODES > CHILDPAGINGTHRESHHOLD);
-                //testing the new fetch functions
-                //that.fetchRoot(callback);
-                //that.fetchChildren(82868, callback);
+
                 that.lazyload(callback);
 
                 /*if(lazyLoadEnabled) {
@@ -143,7 +175,7 @@
 
                 that.url = that.rootURL + that.id;
 
-                this.fetch({ success: function () {
+                aRequest = this.fetch({ success: function () {
                     if (typeof (child) !== "undefined") {
                         that.url = that.childURL + that.id + "/" + child;
                         that.fetch({reset: false,
@@ -156,6 +188,7 @@
                         if (typeof (callback) !== "undefined") { callback(); }
                     }
                 }});
+                requests.push(aRequest);
             } //fetch the root and a single child file. currently erases the root when fetching the child.
 
         });
@@ -328,8 +361,6 @@
                 this.statsURL = props.statsURL;
 
                 this.getStats(); //get the stats
-
-                this.fetch();
             },
 
             setURL : function (id) {
@@ -371,12 +402,13 @@
                 $(this.button).click({that: this}, this.buttonClick); //Mapping Button
                 this.listenTo(this.cse.collection, "reset", this.collectionChanged);
                 var that = this;
-                that.collection.fetch({
+                aRequest = that.collection.fetch({
                     success: function (c, r) {
                         that.pages = Math.floor((r.length / that.items_per_page)) + 1;
                         that.render();
                     }
                 });
+                requests.push(aRequest);
 
             },
 
@@ -485,10 +517,12 @@
                 this.collection.setURL(this.cse.collection.id);
                 this.collection.getStats();
                 var that = this;
+                spinner.spin(spintarget);
                 that.collection.fetch({
                     success: function (c, r) {
                         that.pages = Math.floor((r.length / that.items_per_page)) + 1;
                         that.render();
+                        spinner.stop();
                     }
                 });
             }
@@ -579,7 +613,7 @@
             cse: 2
         });
         var mapView = new MapView({
-            el : "#tree3",
+            el : "#MappingTable",
             collection : mapTreeCollection,
             button : "#mappingButton",
             cse : cseview,
@@ -605,6 +639,15 @@
         });
 
         Backbone.history.start();
+        $.when.apply($, requests).done(function () { spinner.stop(); } );
 
     });
 }(jQuery, _));
+
+/*var activeAJAX = 0;
+
+Before making an AJAX call, activeAJAX++;
+
+After completing an AJAX call (in the callback): if (--activeAJAX == 0) { allDone(); }
+allDone = spinner.stop()
+*/
