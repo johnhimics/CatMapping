@@ -525,7 +525,7 @@
                         spinner.stop();
                     }
                 });
-                request.push(aRequest);
+                requests.push(aRequest);
             }
         });
 
