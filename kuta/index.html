@@ -4,9 +4,7 @@
     <meta charset="utf-8">
     <title>Category Mapping</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="">
-    <meta name="author" content="Olas Navigator">
-
+    <meta name444444325="description" content="">
     <!-- required styles -->
     <link href="library/assets/css/bootstrap.css" rel="stylesheet">
     <link href="library/assets/css/bootstrap-responsive.css" rel="stylesheet">
@@ -157,7 +155,6 @@
     <!-- jqTree HTML --> 
     <div class="treeArea" class="container">
         <div id="tree-container">
-            <h2>CSE Campaign Name</h2>
             <p>
 			  	<label for="cseselect">Select CSE:</label>
 			  	<select id="cseselect" name="cseselect">
@@ -166,8 +163,10 @@
 				    <option value="3">CSE 3</option>
 			  	</select>
 			</p>
+            <h2>CSE Campaign</h2>
             <div id="csetree" class="treeDiv">
             	<!-- insert a tree here -->
+                Loading CSE Categories
             </div>
         </div>
         <div class="info-container">
@@ -178,9 +177,8 @@
         	<button id="mappingButton">Map These Two</button>
     	</div>
         <div id="tree-container">
-            <h2>Category Name</h2>
-            <p style="padding:2px">
-			  	<br><br><br>
+            <h2>Your Categories</h2>
+            <p>
 			  	<!-- <select id="catselect" class="center-block" name="catselect">
 				    <option value="1">Cat 1</option>
 				    <option value="2">Cat 2</option>
@@ -189,13 +187,14 @@
 			</p>
             <div id="cattree" class="treeDiv">
             	<!-- insert a tree here -->
+                Loading Your Categories
             </div>
         </div>
         <div id="tree-container">
             <h2>Mappings</h2>
             <div id="tree3" class="treeDiv map">
             	<!--insert a table here-->
-            	<p> The mapping functionality is not yet built. </p>
+            	<p> Loading Mappings </p>
             </div>
         </div>
     </div>
@@ -247,7 +246,7 @@
                 <th>{{cse_name}}</th>
                 <th>{{yourcategory_id}}</th>
                 <th>{{cat_name}}</th>
-                <th><a href="#">Delete</a></th>
+                <th><button id="DeleteLink" class="btn btn-info MappingPageLink" data-cse="{{csecategory_id}}" data-cat="{{yourcategory_id}}">Delete</button></th>
             </tr>
             {{/data}}
 
@@ -255,12 +254,12 @@
         <div style="width:100%; text-align: center;">
             <button id="btnprev" class="btn btn-info MappingPageLink">Prev</button>
             {{#pages}}
-            <button id="btn{{.}}" class="btn btn-info MappingPageLink">{{.}}</button>
+            <button id="PageButton" class="PageButton btn btn-info MappingPageLink">{{.}}</button>
             {{/pages}}
             <button id="btnnext" class="btn btn-info MappingPageLink">Next</button>
         </div>
     </script>
-
+            <!--<button id="btn{{.}}" class="btn btn-info MappingPageLink">{{.}}</button>-->
     </div>
 	<!-- ./ post wrapper -->
       </div>
