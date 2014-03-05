@@ -61,9 +61,9 @@
     spinner.spin(spintarget);
     
     // GLOBAL VARIABLES
-    var LAZYLOADINGTHRESHHOLD = 800, CHILDPAGINGTHRESHHOLD = 100, CHILDPAGESIZE = 25,
+    var LAZYLOADINGTHRESHHOLD = 800, CHILDPAGINGTHRESHHOLD = 100, CHILDPAGESIZE = 25;
     // FOR THE SERVER 
-      CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
+     var CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
         CSECHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategory/",
         CSESTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategorystats/",
         CATROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/categories",
@@ -72,8 +72,8 @@
         MAPURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mapping/", //<cse_id::integer> GET or POST or DELETE
         DROPDOWNURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/cse";
     
-     /*//FOR LOCAL TESTING
-        CSEROOTURL = "../api/v1.0/csecategories/";
+     //FOR LOCAL TESTING
+   /* var    CSEROOTURL = "../api/v1.0/csecategories/";
     var CSECHILDURL = "../api/v1.0/csecategory/";
     var CSESTATSURL = "../api/v1.0/csecategorystats/";
     var CATROOTURL = "../api/v1.0/categories";
@@ -97,9 +97,22 @@
             }
 
         });
-
+        // add this to your namespace and have all of your collections inherit from it
+        var JSON_HANDLER_COLLECTION = Backbone.Collection.extend({
+            parse: function(resp, xhr) {
+                if ( typeof(resp.results) !== "undefined") {
+                    return resp.results; 
+                } else if (typeof(resp.result) !== "undefined"){ 
+                    return resp.result;
+                } else {
+                    console.log("no results array, returning resp");
+                    return resp; 
+                }
+            }
+        });
+        
         // Tree Collection - represents the tree
-        var TreeCollection = Backbone.Collection.extend({
+        var TreeCollection = JSON_HANDLER_COLLECTION.extend({
             model: TreeNode,
             //defaults
             rootURL: "",
@@ -141,15 +154,29 @@
                 });
             },
 
-
             getStats: function (callback) {
                 var that = this;
-                var stats = $.getJSON(that.statsURL, function () {
-                    that.TOTALNODES = stats.responseJSON.total_nodes;
-                    that.MAXCHILDNODES = stats.responseJSON.max_child_nodes;
-                    if (typeof (callback) !== "undefined") {callback(); }
-                }
-                    );
+                var stats = $.getJSON(that.statsURL)
+                    .always( function () {
+                        spinner.spin(spintarget);
+                    })
+                    .done( function () {
+                        if (typeof(stats.responseJSON) !== "undefined") {
+                            that.TOTALNODES = stats.responseJSON.total_nodes;
+                            that.MAXCHILDNODES = stats.responseJSON.max_child_nodes;
+                        } else {
+                            that.TOTALNODES = stats.responseJSON.results.total_nodes;
+                            that.MAXCHILDNODES = stats.responseJSON.results.max_child_nodes;
+                        }
+                        if (typeof (callback) !== "undefined") {callback(); }
+                    })
+                    .fail( function () {
+                        console.log("tree stats call fail");
+                        that.TOTALNODES = 1
+                        that.MAXCHILDNODES = 1
+                        if (typeof (callback) !== "undefined") {callback(); }
+                    });
+                    
             },
 
             load: function (callback) {
@@ -191,7 +218,9 @@
                         that.url = that.childURL + that.id + "/" + child;
                         that.fetch({reset: false,
                             success: function () {
-                                if (typeof (callback) !== "undefined") { console.log("CHILD FETCH SUCCESS"); callback(); }
+                                if (typeof (callback) !== "undefined") {
+                                    console.log("CHILD FETCH SUCCESS"); callback();
+                                }
                             },
                             error: function () { console.log("CHILD FAIL"); callback(); }
                             });
@@ -200,20 +229,22 @@
                     }
                 }});
                 requests.push(aRequest);
-            } //fetch the root and a single child file. currently erases the root when fetching the child.
+            } //fetch the root and a single child file. 
+              //currently erases the root when fetching the child.
 
         });
 
         var CatTreeCollection = TreeCollection.extend({
+            
             initialize: function (props) {
                 var that = this;
                 that.rootURL = props.rootURL;
                 that.childURL = props.childURL;
                 that.id = props.id;
                 that.url = that.rootURL;
-
+                // is this necessary? **TODO**
                 that.fetch({success: function (c, r) {
-                    //pass
+
                 }});
             }
         });
@@ -236,14 +267,12 @@
                 $(this.selectTag).change({that: this}, this.selected);
                 //initialize the tree with no data
                 this.$el.tree({data: []});
-                //fetch and render
-                var that = this;
-                this.collection.fetch({success: function () { that.render(); }});
             },
 
             render: function () {
                 //get tree data
                 var treedata = this.getTreeData();
+                console.log(treedata);
                 //pass tree data to tree
                 this.$el.tree('loadData', treedata);
             },
@@ -257,9 +286,7 @@
             selected : function (e) {
                 var that = e.data.that;
                 var selected = e.target.value;
-                that.collection.update(
-                    selected
-                );
+                that.collection.update(selected);
             }, // function called with the <select> tag selects something new
 
             collectionChanged : function (e) {
@@ -270,7 +297,10 @@
             getTreeData : function () {
                 var that = this;
                 var data = [];
+                console.log(that.collection.models);
                 var rootNodes = that.collection.where({parent_id: 0});
+                console.log("rootNodes");
+                console.log(rootNodes);
                 _.each(rootNodes,
                                function (c) {
                         var children = that.recurHelper(c.get("id"));
@@ -354,7 +384,7 @@
             }
         });
 
-        var MapCollection = Backbone.Collection.extend({
+        var MapCollection = JSON_HANDLER_COLLECTION.extend({
             model: MapModel,
 
             //defaults 
@@ -428,23 +458,7 @@
                 $(this.button).click({that: this}, this.buttonClick); //Mapping Button
                 this.listenTo(this.cse.collection, "reset", this.collectionChanged);
                 var that = this;
-                aRequest = that.collection.fetch()
-                    .always(function () {
-                        spinner.spin(spintarget);
-                    })
-                    .done( function (c, r) {
-                        that.pages = Math.floor((r.length / that.items_per_page)) + 1;
-                        that.render();
-                    })
-                    .fail( function () {
-                        console.log("MAPPING LOAD FAIL");
-                        that.pages = 1;
-                        that.render();
-                        spinner.stop();
-                    });
-
-                requests.push(aRequest);
-
+                that.collectionChanged();
             },
 
             render: function () {
@@ -571,14 +585,10 @@
         });
 
         //*** DROPDOWN STRUCTURES
-        var DropDownColl = Backbone.Collection.extend({
+        var DropDownColl = JSON_HANDLER_COLLECTION.extend({
             initialize: function (props) {
                 this.url = props.url;
                 var that = this;
-
-                this.fetch({success: function () {
-                            //pass
-                }});
             }
         }); //Collection for the select tags
 
@@ -596,6 +606,7 @@
                 $("#catselect").change(this.choiceMade);
             },
 
+            // Create an error handler here **TODO**
             render: function () {
                 var that = this;
                 that.collection.fetch({
@@ -675,8 +686,8 @@
             //render functions
             //viewCatSelect.render();
             viewCseSelect.render();
-            //cseview.render();
-            //catview.render();
+            cseview.render();
+            catview.render();
         });
 
         Backbone.history.start();
