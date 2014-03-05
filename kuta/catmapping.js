@@ -10,15 +10,14 @@
  * CSE tree created (no lazy loading)
  * 
  *
- * TODO:    Loading spinner
+ * TODO:    Loading spinner (perfect it)
  *          Lazy-loading, once API is built
  *          Make sure mappings save properly, once API is built
- *          tree mapping enabled functionality
  *
  *
- *
- *
- *
+ * NOTES: Every CSE has enable_tree_mappings = false ??
+ *          loading spinner jumps and freezes
+ *          
  * 
  */
 
@@ -73,15 +72,15 @@
         DROPDOWNURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/cse";
     
      //FOR LOCAL TESTING
-   /* var    CSEROOTURL = "../api/v1.0/csecategories/";
+  /*  var    CSEROOTURL = "../api/v1.0/csecategories/";
     var CSECHILDURL = "../api/v1.0/csecategory/";
     var CSESTATSURL = "../api/v1.0/csecategorystats/";
     var CATROOTURL = "../api/v1.0/categories";
     var CATCHILDURL = "../api/v1.0/category/";
     var MAPSTATSURL = "../api/v1.0/mappingstats/"; //<cse_id::integer> GET
     var MAPURL = "../api/v1.0/mapping/"; //<cse_id::integer> GET or POST or DELETE
-    var DROPDOWNURL ="../api/v1.0/cse";*/
-
+    var DROPDOWNURL ="../api/v1.0/cse";
+*/
     /* This is the preferred onDocumentReady syntax for jQuery at the moment. */
     $(function () {
 	//*** TREE STRUCTURES
@@ -256,12 +255,14 @@
             selectTag : "",
             el : "",
             selectedElement : "",
+            selectCollection : {},
 
             initialize: function (props) {
                 this.collection = props.coll;
                 this.listenTo(this.collection, "reset", this.render);
                 this.selectTag = props.selectTag;
                 this.selectedElement = props.selectedElement;
+                this.selectCollection = props.selectCollection;
                 this.el = props.el;
                 //workaround for select tag event
                 $(this.selectTag).change({that: this}, this.selected);
@@ -299,8 +300,11 @@
                 var data = [];
                 console.log(that.collection.models);
                 var rootNodes = that.collection.where({parent_id: 0});
-                console.log("rootNodes");
-                console.log(rootNodes);
+                
+                //REMOVE THIS **TODO**
+                if (rootNodes.length === 0) {
+                    rootNodes = that.collection.where({parentId: 0});
+                }
                 _.each(rootNodes,
                                function (c) {
                         var children = that.recurHelper(c.get("id"));
@@ -317,6 +321,10 @@
                 var that = this;
                 var data = [];
                 var childNodes = that.collection.where({parent_id: parent_id});
+                //REMOVE THIS **TODO**
+                if (childNodes.length === 0) {
+                    childNodes = that.collection.where({parentId: parent_id});
+                }
                 _.each(childNodes,
                                function (c) {
                         var children = that.recurHelper(c.get("id"));
@@ -329,28 +337,50 @@
                 return data;
             }, // recursive function to build tree data
 
-            treeSelect : function () {
-                //console.log("Tree Select event caught");
+            treeSelect : function (e) {
+                e.preventDefault();
+                var node = e.node;
+                if (node !== null) {
+                    $(this.selectedElement).html(node.name);
+                } else {
+                    console.log("deselected");
+                    $(this.selectedElement).html("Nothing Selected");
+                }
             },
 
             treeOpen : function () {
                 //console.log("Tree Open event caught");
             },
 
+            // requires a dummy click after a deselect **TODO**
             treeClick : function (e) {
-                //prevent the default selection
-                e.preventDefault();
-
-                //determine if the node is clickable
                 var node = e.node;
                 var id = e.node.id;
+                
+                var cse_id = parseInt($(this.selectTag)[0].value, 10);
+                
                 var nodeArray = this.collection.where({id: id});
                 var mappable = nodeArray[0].attributes.is_mappable;
-
+                console.log(this.selectCollection.where({enforce_tree_mappings: true}));
+                nodeArray = this.selectCollection.where({id: cse_id});
+                var treeMappable = nodeArray[0].attributes.enforce_leaf_mappings;
+                //Override treeMappable  **TODO**
+                var treeMappable = true; 
+                
+                //prevent the default selection
+                e.preventDefault();
+                console.log(this.$el.tree('isNodeSelected', node));
+                //determine if node is selected          
+                if (this.$el.tree('isNodeSelected', node)) {
+                    console.log("deselect");
+                    this.$el.tree('selectNode', "null");
+                }
                 //select the node if mappable
-                if (mappable) {
-                    this.$el.tree('selectNode', node);
-                    $(this.selectedElement).html(node.name);
+                if (treeMappable !== false) {
+                    if (mappable !== false) {
+                        this.$el.tree('selectNode', node);
+                        //$(this.selectedElement).html(node.name);
+                    }
                 }
             }
         });
@@ -646,7 +676,8 @@
             coll : cseTreeCollection,
             selectTag : "#cseselect",
             el: "#csetree",
-            selectedElement: "#activeCSE"
+            selectedElement: "#activeCSE",
+            selectCollection: cseselectcoll
         });
         var catTreeCollection = new CatTreeCollection({
             childURL: CATCHILDURL,
@@ -659,7 +690,7 @@
             el: "#cattree",
             selectedElement: "#activeCat"
         });
-        /*var mapTreeCollection = new MapCollection({
+        var mapTreeCollection = new MapCollection({
             mapurl : MAPURL,
             statsURL : MAPSTATSURL,
             cse: 2
@@ -671,7 +702,7 @@
             cse : cseview,
             cat : catview,
             selectTag : "#cseselect"
-        });*/
+        });
 
         //*** ROUTER
         //declare the backbone router
