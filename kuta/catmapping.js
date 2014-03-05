@@ -62,13 +62,25 @@
     
     // GLOBAL VARIABLES
     var LAZYLOADINGTHRESHHOLD = 800, CHILDPAGINGTHRESHHOLD = 100, CHILDPAGESIZE = 25,
-        CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
+    // FOR THE SERVER 
+      CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
         CSECHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategory/",
         CSESTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategorystats/",
         CATROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/categories",
         CATCHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/category/",
         MAPSTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mappingstats/", //<cse_id::integer> GET
-        MAPURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mapping/"; //<cse_id::integer> GET or POST or DELETE
+        MAPURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mapping/", //<cse_id::integer> GET or POST or DELETE
+        DROPDOWNURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/cse";
+    
+     /*//FOR LOCAL TESTING
+        CSEROOTURL = "../api/v1.0/csecategories/";
+    var CSECHILDURL = "../api/v1.0/csecategory/";
+    var CSESTATSURL = "../api/v1.0/csecategorystats/";
+    var CATROOTURL = "../api/v1.0/categories";
+    var CATCHILDURL = "../api/v1.0/category/";
+    var MAPSTATSURL = "../api/v1.0/mappingstats/"; //<cse_id::integer> GET
+    var MAPURL = "../api/v1.0/mapping/"; //<cse_id::integer> GET or POST or DELETE
+    var DROPDOWNURL ="../api/v1.0/cse";*/
 
     /* This is the preferred onDocumentReady syntax for jQuery at the moment. */
     $(function () {
@@ -121,7 +133,6 @@
                 that.id = id;
                 that.url = that.rootURL + that.id;
                 that.statsURL = that.statsURLroot + that.id;
-                //spinner.spin(spintarget);
                 that.getStats(function () {
                     that.load(function () {
                         that.trigger("reset"); //to fire the reset event.
@@ -350,6 +361,7 @@
             url: "",
             rooturl: "",
             statsURL: "",
+            rootStatsURL: "",
             cse_id: 0,
             total_mappings: 0,
 
@@ -357,23 +369,37 @@
                 // constructor values
                 this.cse_id = props.cse;
                 this.rooturl = props.mapurl;
+                this.rootStatsURL = props.rootStatsURL;
                 this.setURL(this.cse_id);
-                this.statsURL = props.statsURL;
+                
 
                 this.getStats(); //get the stats
             },
 
             setURL : function (id) {
                 this.url = this.rooturl + id;
+                this.statsURL = this.rootStatsURL + id;
             },
 
             getStats: function (callback) {
                 var that = this;
-                var stats = $.getJSON(that.statsURL, function () {
-                    that.total_mappings = stats.responseJSON.total_mappings;
-                    if (typeof (callback) !== "undefined") {callback(); }
-                }
-                    );
+                
+                var stats = $.getJSON(that.statsURL)
+                    .always(function () {
+                        spinner.spin(spintarget);
+                    })
+                    .done( function () {
+                        console.log("success");
+                        that.total_mappings = stats.responseJSON.total_mappings;
+                            if (typeof (callback) !== "undefined") {callback(); }
+                    })
+                    .fail( function () {
+                        console.log("Mapping Stats fetch error"); 
+                        spinner.stop();
+                        that.total_mappings = 0;
+                        if (typeof (callback) !== "undefined") {callback(); }
+                    } );
+                    
             }
         });
 
@@ -402,12 +428,21 @@
                 $(this.button).click({that: this}, this.buttonClick); //Mapping Button
                 this.listenTo(this.cse.collection, "reset", this.collectionChanged);
                 var that = this;
-                aRequest = that.collection.fetch({
-                    success: function (c, r) {
+                aRequest = that.collection.fetch()
+                    .always(function () {
+                        spinner.spin(spintarget);
+                    })
+                    .done( function (c, r) {
                         that.pages = Math.floor((r.length / that.items_per_page)) + 1;
                         that.render();
-                    }
-                });
+                    })
+                    .fail( function () {
+                        console.log("MAPPING LOAD FAIL");
+                        that.pages = 1;
+                        that.render();
+                        spinner.stop();
+                    });
+
                 requests.push(aRequest);
 
             },
@@ -517,14 +552,20 @@
                 this.collection.setURL(this.cse.collection.id);
                 this.collection.getStats();
                 var that = this;
-                spinner.spin(spintarget);
-                aRequest = that.collection.fetch({
-                    success: function (c, r) {
+                aRequest = that.collection.fetch()
+                    .always(function () {
+                        spinner.spin(spintarget);
+                    })
+                    .done( function (c, r) {
                         that.pages = Math.floor((r.length / that.items_per_page)) + 1;
                         that.render();
+                    })
+                    .fail( function () {
+                        console.log("MAPPING LOAD FAIL");
                         spinner.stop();
-                    }
-                });
+                        that.pages = 1;
+                        that.render();
+                    });
                 requests.push(aRequest);
             }
         });
@@ -577,8 +618,7 @@
 
         //*** VARIABLES
         //Dropdown variables
-        var cseselectcoll = new DropDownColl({url: "../api/v1.0/cse"});
-        var categoryselectcoll = new DropDownColl({url: "../api/v1.0/categories"});
+        var cseselectcoll = new DropDownColl({url: DROPDOWNURL});
         var viewCseSelect = new SelectView({
             el : "#cseselect",
             collection : cseselectcoll
@@ -608,7 +648,7 @@
             el: "#cattree",
             selectedElement: "#activeCat"
         });
-        var mapTreeCollection = new MapCollection({
+        /*var mapTreeCollection = new MapCollection({
             mapurl : MAPURL,
             statsURL : MAPSTATSURL,
             cse: 2
@@ -620,7 +660,7 @@
             cse : cseview,
             cat : catview,
             selectTag : "#cseselect"
-        });
+        });*/
 
         //*** ROUTER
         //declare the backbone router
