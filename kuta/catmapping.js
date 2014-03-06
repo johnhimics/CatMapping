@@ -13,9 +13,9 @@
  * TODO:    Loading spinner (perfect it)
  *          Lazy-loading, once API is built
  *          Make sure mappings save properly, once API is built
+ *          EMULATE HTTP option enable
  *
- *
- * NOTES: Every CSE has enable_tree_mappings = false ??
+ * NOTES:   Every CSE has enable_tree_mappings = false ??
  *          loading spinner jumps and freezes
  *          
  * 
@@ -36,37 +36,38 @@
     "use strict";
     /*Spin.js for initial loading*/
     var opts = {
-      lines: 10, // The number of lines to draw
-      length: 25, // The length of each line
-      width: 8, // The line thickness
-      radius: 30, // The radius of the inner circle
-      corners: 1, // Corner roundness (0..1)
-      rotate: 0, // The rotation offset
-      direction: 1, // 1: clockwise, -1: counterclockwise
-      color: '#000', // #rgb or #rrggbb or array of colors
-      speed: 1, // Rounds per second
-      trail: 20, // Afterglow percentage
-      shadow: false, // Whether to render a shadow
-      hwaccel: false, // Whether to use hardware acceleration
-      className: 'spinner', // The CSS class to assign to the spinner
-      zIndex: 2e9, // The z-index (defaults to 2000000000)
-      top: 'auto', // Top position relative to parent in px
-      left: 'auto' // Left position relative to parent in px
-    };
+            lines: 10, // The number of lines to draw
+            length: 25, // The length of each line
+            width: 8, // The line thickness
+            radius: 30, // The radius of the inner circle
+            corners: 1, // Corner roundness (0..1)
+            rotate: 0, // The rotation offset
+            direction: 1, // 1: clockwise, -1: counterclockwise
+            color: '#000', // #rgb or #rrggbb or array of colors
+            speed: 1, // Rounds per second
+            trail: 20, // Afterglow percentage
+            shadow: false, // Whether to render a shadow
+            hwaccel: false, // Whether to use hardware acceleration
+            className: 'spinner', // The CSS class to assign to the spinner
+            zIndex: 2e9, // The z-index (defaults to 2000000000)
+            top: 'auto', // Top position relative to parent in px
+            left: 'auto' // Left position relative to parent in px
+        };
     var aRequest;
     var requests = [];
     var spintarget = document.getElementById('spinnerDIV');
-    var spinner = new Spinner(opts)
+    var spinner = new Spinner(opts);
     spinner.spin(spintarget);
     
     // GLOBAL VARIABLES
     var LAZYLOADINGTHRESHHOLD = 800, CHILDPAGINGTHRESHHOLD = 100, CHILDPAGESIZE = 25;
     // FOR THE SERVER 
-     var CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
+    var CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
         CSECHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategory/",
         CSESTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategorystats/",
         CATROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/categories",
         CATCHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/category/",
+        CATSTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/categorystats/",
         MAPSTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mappingstats/", //<cse_id::integer> GET
         MAPURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mapping/", //<cse_id::integer> GET or POST or DELETE
         DROPDOWNURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/cse";
@@ -83,6 +84,8 @@
 */
     /* This is the preferred onDocumentReady syntax for jQuery at the moment. */
     $(function () {
+        Backbone.emulateHTTP = true;
+    
 	//*** TREE STRUCTURES
 	//DataModel - represents each node
         var TreeNode = Backbone.Model.extend({
@@ -98,14 +101,14 @@
         });
         // add this to your namespace and have all of your collections inherit from it
         var JSON_HANDLER_COLLECTION = Backbone.Collection.extend({
-            parse: function(resp, xhr) {
-                if ( typeof(resp.results) !== "undefined") {
-                    return resp.results; 
-                } else if (typeof(resp.result) !== "undefined"){ 
+            parse: function (resp, xhr) {
+                if (typeof (resp.results) !== "undefined") {
+                    return resp.results;
+                } else if (typeof (resp.result) !== "undefined") {
                     return resp.result;
                 } else {
                     console.log("no results array, returning resp");
-                    return resp; 
+                    return resp;
                 }
             }
         });
@@ -122,6 +125,9 @@
             url: this.rootURL + this.id,
             TOTALNODES: 100,
             MAXCHILDNODES: 20,
+            page_num: 0,
+            page_size: CHILDPAGESIZE,
+            paged: false,
 
             initialize: function (props) {
                 var that = this;
@@ -156,11 +162,11 @@
             getStats: function (callback) {
                 var that = this;
                 var stats = $.getJSON(that.statsURL)
-                    .always( function () {
+                    .always(function () {
                         spinner.spin(spintarget);
                     })
-                    .done( function () {
-                        if (typeof(stats.responseJSON) !== "undefined") {
+                    .done(function () {
+                        if (typeof (stats.responseJSON) !== "undefined") {
                             that.TOTALNODES = stats.responseJSON.total_nodes;
                             that.MAXCHILDNODES = stats.responseJSON.max_child_nodes;
                         } else {
@@ -169,10 +175,10 @@
                         }
                         if (typeof (callback) !== "undefined") {callback(); }
                     })
-                    .fail( function () {
+                    .fail(function () {
                         console.log("tree stats call fail");
-                        that.TOTALNODES = 1
-                        that.MAXCHILDNODES = 1
+                        that.TOTALNODES = 1;
+                        that.MAXCHILDNODES = 1;
                         if (typeof (callback) !== "undefined") {callback(); }
                     });
                     
@@ -184,67 +190,91 @@
                 var childPagingEnabled = (lazyLoadEnabled &&
                                           that.MAXCHILDNODES > CHILDPAGINGTHRESHHOLD);
 
-                that.lazyload(callback);
-
-                /*if(lazyLoadEnabled) {
+                //that.lazyload(callback);
+                //override for testing
+                lazyLoadEnabled = true;
+                childPagingEnabled = true;
+                
+                if (lazyLoadEnabled) {
 
                     console.log("Lazy Loading Enabled!");
 
-                    if(childPagingEnabled) {
+                    if (childPagingEnabled) {
                         // get the first page of root nodes
                         console.log("Lazy and Child Lazy");
-                        that.fetchRoot(callback);
+                        that.paged = true;
+                        that.lazyload(callback, 1, that.page_num, that.page_size, 0);
                     } else {
                         //get all the root nodes
                         console.log("Lazy but not child lazy");
-                        that.fetchRoot(callback);
+                        
+                        //that.lazyload(callback, 2);
                     }
 
                 } else {
-                    console.log("I'm NOT lazy!'")
-                    that.fetchRoot(callback);
-                }*/
+                    console.log("I'm NOT lazy!'");
+                    that.paged = false;
+                    that.lazyload(callback, 0);
+                }
 
             }, //Implementation of lazy loading
 
-            lazyload: function (callback, child) {
+            lazyload: function (callback, lazystyle, page_number, page_size, parent_id) {
                 var that = this;
 
-                that.url = that.rootURL + that.id;
-
-                aRequest = this.fetch({ success: function () {
-                    if (typeof (child) !== "undefined") {
-                        that.url = that.childURL + that.id + "/" + child;
-                        that.fetch({reset: false,
-                            success: function () {
-                                if (typeof (callback) !== "undefined") {
-                                    console.log("CHILD FETCH SUCCESS"); callback();
-                                }
-                            },
-                            error: function () { console.log("CHILD FAIL"); callback(); }
-                            });
-                    } else {
-                        if (typeof (callback) !== "undefined") { callback(); }
-                    }
-                }});
-                requests.push(aRequest);
-            } //fetch the root and a single child file. 
-              //currently erases the root when fetching the child.
-
+                if (lazystyle === 0 || typeof (lazystyle) === "undefined") {
+                    aRequest = that.fetch()
+                        .always(function () {
+                            spinner.spin(spintarget);
+                        })
+                        .done(function () {
+                            if (typeof (callback) !== "undefined") { callback(); }
+                            spinner.stop();
+                        })
+                        .fail(function () {
+                            console.log("Tree Collection Load failed");
+                        });
+                    requests.push(aRequest);
+                } else if (lazystyle === 1) {
+                    aRequest = that.fetch({data: {
+                        page_number: page_number,
+                        page_size: page_size,
+                        parent_id: parent_id
+                    }})
+                        .always(function () {
+                            spinner.spin(spintarget);
+                        })
+                        .done(function () {
+                            if (typeof (callback) !== "undefined") { callback(); }
+                            spinner.stop();
+                        })
+                        .fail(function () {
+                            console.log("Tree Collection Load failed");
+                        });
+                    requests.push(aRequest);
+                } else if (lazystyle === 2) {
+                    console.log("2");
+                }
+            }
         });
 
         var CatTreeCollection = TreeCollection.extend({
             
             initialize: function (props) {
                 var that = this;
+                // constructor values
                 that.rootURL = props.rootURL;
                 that.childURL = props.childURL;
+                //that.statsURLroot = props.statsURL;
+                //that.statsURL = that.statsURLroot + that.id;
                 that.id = props.id;
                 that.url = that.rootURL;
-                // is this necessary? **TODO**
-                that.fetch({success: function (c, r) {
 
-                }});
+                // get the stats (make this a model)
+                //that.getStats();
+
+                //Calling function for fetch commands
+                that.load();
             }
         });
 
@@ -256,15 +286,18 @@
             el : "",
             selectedElement : "",
             selectCollection : {},
+            loadButton: "",
 
             initialize: function (props) {
                 this.collection = props.coll;
-                this.listenTo(this.collection, "reset", this.render);
                 this.selectTag = props.selectTag;
                 this.selectedElement = props.selectedElement;
                 this.selectCollection = props.selectCollection;
                 this.el = props.el;
+                this.loadButton = props.loadButton;
                 //workaround for select tag event
+                this.listenTo(this.collection, "reset", this.render);
+                $(this.loadButton).click({that: this}, this.loadMore);
                 $(this.selectTag).change({that: this}, this.selected);
                 //initialize the tree with no data
                 this.$el.tree({data: []});
@@ -274,6 +307,9 @@
                 //get tree data
                 var treedata = this.getTreeData();
                 console.log(treedata);
+                //handle the next, prev buttons for paging the tree **TODO**
+                //if (this.collection.paged === true) { render buttons
+                //}
                 //pass tree data to tree
                 this.$el.tree('loadData', treedata);
             },
@@ -292,6 +328,7 @@
 
             collectionChanged : function (e) {
                 var that = this;
+                this.collection.page_num = 0; //reset page number so lazy loading starts over
                 that.render();
             }, // function called when the collection is updated
 
@@ -309,8 +346,8 @@
                                function (c) {
                         var children = that.recurHelper(c.get("id"));
                         var root = {"label": c.get("name"),
-                                                "id" : c.get("id"),
-                                               "children" : children};
+                                    "id" : c.get("id"),
+                                    "children" : children};
                         data.push(root);
                     },
                                that);
@@ -365,7 +402,7 @@
                 nodeArray = this.selectCollection.where({id: cse_id});
                 var treeMappable = nodeArray[0].attributes.enforce_leaf_mappings;
                 //Override treeMappable  **TODO**
-                var treeMappable = true; 
+                treeMappable = true;
                 
                 //prevent the default selection
                 e.preventDefault();
@@ -382,6 +419,13 @@
                         //$(this.selectedElement).html(node.name);
                     }
                 }
+            },
+            
+            loadMore : function (e) {
+                var that = e.data.that;
+                console.log("Load the next page!");
+                that.collection.page_num += 1;
+                that.collection.load();
             }
         });
 
@@ -448,17 +492,17 @@
                     .always(function () {
                         spinner.spin(spintarget);
                     })
-                    .done( function () {
+                    .done(function () {
                         console.log("success");
                         that.total_mappings = stats.responseJSON.total_mappings;
-                            if (typeof (callback) !== "undefined") {callback(); }
+                        if (typeof (callback) !== "undefined") {callback(); }
                     })
-                    .fail( function () {
-                        console.log("Mapping Stats fetch error"); 
+                    .fail(function () {
+                        console.log("Mapping Stats fetch error");
                         spinner.stop();
                         that.total_mappings = 0;
                         if (typeof (callback) !== "undefined") {callback(); }
-                    } );
+                    });
                     
             }
         });
@@ -557,7 +601,7 @@
             deleteLinkClicked : function (e) {
                 console.log(e);
                 var that = e.data.that;
-                var model = that.collection.where({csecategory_id: e.currentTarget.dataset.cse, 
+                var model = that.collection.where({csecategory_id: e.currentTarget.dataset.cse,
                                                    yourcategory_id : e.currentTarget.dataset.cat});
                 console.log(model);
                 
@@ -600,11 +644,11 @@
                     .always(function () {
                         spinner.spin(spintarget);
                     })
-                    .done( function (c, r) {
+                    .done(function (c, r) {
                         that.pages = Math.floor((r.length / that.items_per_page)) + 1;
                         that.render();
                     })
-                    .fail( function () {
+                    .fail(function () {
                         console.log("MAPPING LOAD FAIL");
                         spinner.stop();
                         that.pages = 1;
@@ -677,18 +721,21 @@
             selectTag : "#cseselect",
             el: "#csetree",
             selectedElement: "#activeCSE",
-            selectCollection: cseselectcoll
+            selectCollection: cseselectcoll,
+            loadButton: "#LoadMore"
         });
         var catTreeCollection = new CatTreeCollection({
             childURL: CATCHILDURL,
             rootURL: CATROOTURL,
+            statsURL: MAPSTATSURL,
             id: 1
         });
         var catview = new CatTreeView({
             coll : catTreeCollection,
             selectTag : "#catselect",
             el: "#cattree",
-            selectedElement: "#activeCat"
+            selectedElement: "#activeCat",
+            loadButton: "#LoadMore"
         });
         var mapTreeCollection = new MapCollection({
             mapurl : MAPURL,
@@ -722,7 +769,7 @@
         });
 
         Backbone.history.start();
-        $.when.apply($, requests).done(function () { spinner.stop(); } );
+        $.when.apply($, requests).done(function () { spinner.stop(); });
 
     });
 }(jQuery, _));
