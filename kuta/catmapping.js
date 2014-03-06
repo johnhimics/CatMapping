@@ -223,15 +223,15 @@
 
             lazyload: function (callback, lazystyle, page_number, page_size, parent_id) {
                 var that = this;
-
+                spinner.spin(spintarget);
+                
                 if (lazystyle === 0 || typeof (lazystyle) === "undefined") {
                     aRequest = that.fetch()
                         .always(function () {
-                            spinner.spin(spintarget);
+                            spinner.stop();
                         })
                         .done(function () {
                             if (typeof (callback) !== "undefined") { callback(); }
-                            spinner.stop();
                         })
                         .fail(function () {
                             console.log("Tree Collection Load failed");
@@ -247,14 +247,13 @@
                             }}
                     )
                         .always(function () {
-                            spinner.spin(spintarget);
+                            spinner.stop();
                         })
                         .done(function (c, r) {
                             if (typeof (callback) !== "undefined") {
                                 console.log("CALLBACK CALLED");
                                 callback();
                             }
-                            spinner.stop();
                         })
                         .fail(function () {
                             console.log("Tree Collection Load failed");
@@ -305,6 +304,7 @@
                 this.loadButton = props.loadButton;
                 //workaround for select tag event
                 this.listenTo(this.collection, "reset", this.render);
+                this.listenTo(this.collection, "add", this.render); //added to defeat the callback/xhr race
                 $(this.loadButton).click({that: this}, this.loadMore);
                 $(this.selectTag).change({that: this}, this.selected);
                 //initialize the tree with no data
@@ -735,7 +735,7 @@
             el: "#csetree",
             selectedElement: "#activeCSE",
             selectCollection: cseselectcoll,
-            loadButton: "#LoadMore"
+            loadButton: "#LoadMoreCSE"
         });
         var catTreeCollection = new CatTreeCollection({
             childURL: CATCHILDURL,
@@ -748,7 +748,7 @@
             selectTag : "#catselect",
             el: "#cattree",
             selectedElement: "#activeCat",
-            loadButton: "#LoadMore"
+            loadButton: "#LoadMoreCAT"
         });
         var mapTreeCollection = new MapCollection({
             mapurl : MAPURL,
