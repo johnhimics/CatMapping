@@ -60,7 +60,7 @@
     spinner.spin(spintarget);
     
     // GLOBAL VARIABLES
-    var LAZYLOADINGTHRESHHOLD = 800, CHILDPAGINGTHRESHHOLD = 100, CHILDPAGESIZE = 25;
+    var LAZYLOADINGTHRESHHOLD = 800, CHILDPAGINGTHRESHHOLD = 100, CHILDPAGESIZE = 5;
     // FOR THE SERVER 
     var CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
         CSECHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategory/",
@@ -130,6 +130,7 @@
             paged: false,
 
             initialize: function (props) {
+                console.log("tree init");
                 var that = this;
                 // constructor values
                 that.rootURL = props.rootURL;
@@ -185,6 +186,7 @@
             },
 
             load: function (callback) {
+                console.log("tree load");
                 var that = this;
                 var lazyLoadEnabled = that.TOTALNODES > LAZYLOADINGTHRESHHOLD;
                 var childPagingEnabled = (lazyLoadEnabled &&
@@ -236,16 +238,22 @@
                         });
                     requests.push(aRequest);
                 } else if (lazystyle === 1) {
-                    aRequest = that.fetch({data: {
-                        page_number: page_number,
-                        page_size: page_size,
-                        parent_id: parent_id
-                    }})
+                    aRequest = that.fetch(
+                        {remove: false,
+                            data: {
+                                page_number: page_number,
+                                page_size: page_size,
+                                parent_id: parent_id
+                            }}
+                    )
                         .always(function () {
                             spinner.spin(spintarget);
                         })
-                        .done(function () {
-                            if (typeof (callback) !== "undefined") { callback(); }
+                        .done(function (c, r) {
+                            if (typeof (callback) !== "undefined") {
+                                console.log("CALLBACK CALLED");
+                                callback();
+                            }
                             spinner.stop();
                         })
                         .fail(function () {
@@ -301,12 +309,18 @@
                 $(this.selectTag).change({that: this}, this.selected);
                 //initialize the tree with no data
                 this.$el.tree({data: []});
+                
+                //load the collection
+                var that = this;
+                this.collection.load(function () { that.render(); });
             },
 
             render: function () {
+                console.log("TREE RENDER");
                 //get tree data
                 var treedata = this.getTreeData();
                 console.log(treedata);
+                console.log(this.collection.models);
                 //handle the next, prev buttons for paging the tree **TODO**
                 //if (this.collection.paged === true) { render buttons
                 //}
@@ -396,9 +410,8 @@
                 
                 var cse_id = parseInt($(this.selectTag)[0].value, 10);
                 
-                var nodeArray = this.collection.where({id: id});
-                var mappable = nodeArray[0].attributes.is_mappable;
-                console.log(this.selectCollection.where({enforce_tree_mappings: true}));
+                var nodeArray = this.collection.findWhere({id: id});
+                var mappable = nodeArray.attributes.is_mappable;
                 nodeArray = this.selectCollection.where({id: cse_id});
                 var treeMappable = nodeArray[0].attributes.enforce_leaf_mappings;
                 //Override treeMappable  **TODO**
@@ -425,7 +438,7 @@
                 var that = e.data.that;
                 console.log("Load the next page!");
                 that.collection.page_num += 1;
-                that.collection.load();
+                that.collection.load(that.render());
             }
         });
 
@@ -763,9 +776,8 @@
         router.on('route:home', function () {
             //render functions
             //viewCatSelect.render();
+            console.log("router called");
             viewCseSelect.render();
-            cseview.render();
-            catview.render();
         });
 
         Backbone.history.start();
