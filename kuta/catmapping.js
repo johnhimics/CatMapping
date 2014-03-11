@@ -204,8 +204,8 @@
 //                console.log(that.page_size);
                 
                 //override for testing
-                lazyLoadEnabled = true;
-                childPagingEnabled = true;
+                /*lazyLoadEnabled = true;
+                childPagingEnabled = true;*/
                 
                 if (lazyLoadEnabled) {
 
@@ -223,8 +223,8 @@
                             that.lazyload(callback, 1, that.page_num, null, id);
                         }
                     } else {
-                        console.log("Load all root nodes (debug, page of 5)");
-                        that.lazyload(callback, 2, that.page_num, 5/*that.TOTALNODES*/, 0); //**TODO** that.page_size should be replaced with null to load ALL
+                        console.log("Load all root nodes");
+                        that.lazyload(callback, 2, that.page_num, that.TOTALNODES, 0); //**TODO** that.page_size should be replaced with null to load ALL
                     }
 
                 } else {
@@ -356,6 +356,7 @@
             },
 
             render: function () {
+                console.log("Tree view render");
                 //get tree data
                 var treedata = this.getTreeData();
                 //handle the next, prev buttons for paging the tree **TODO**
@@ -363,12 +364,15 @@
                 //}
                 //pass tree data to tree
                 this.$el.tree('loadData', treedata);
+                //this.$el.tree({'data': treedata});  //causes the tree to jump open and closed.
             },
 
             events: {
                 "tree.select" : "treeSelect",
                 "tree.open" : "treeOpen",
-                "tree.click" : "treeClick"
+                "tree.click" : "treeClick",
+                "tree.init" : "treeInit",
+                "tree.close" : "treeClose"
             },
 
             selected : function (e) {
@@ -436,49 +440,74 @@
             },
 
             treeOpen : function () {
-                //console.log("Tree Open event caught");
+                console.log("Tree Open event caught");
+            },
+            
+            treeClose : function () {
+                console.log("Tree Open event caught");
             },
 
             treeClick : function (e) {
+                e.preventDefault();
                 console.log("Tree click event caught");
                 var node = e.node;
                 var id = e.node.id;
                 
-                var cse_id = parseInt($(this.selectTag)[0].value, 10);
-                
                 var nodeArray = this.collection.findWhere({id: id});
                 var mappable = nodeArray.attributes.is_mappable;
-                nodeArray = this.selectCollection.where({id: cse_id});
-                var treeMappable = nodeArray[0].attributes.enforce_leaf_mappings;
-                //Override treeMappable  **TODO** implemented since tree_mappable always seems to be false.
-                treeMappable = true;
+                var treeMappable = true;
+                console.log(this.selectTag);
+                if (typeof (this.selectTag) !== "undefined") {
+                    var cse_id = parseInt($(this.selectTag)[0].value, 10);
+                    nodeArray = this.selectCollection.where({id: cse_id});
+                    var treeMappable = nodeArray[0].attributes.enforce_leaf_mappings;
+                    treeMappable = true;  //Override treeMappable  **TODO** implemented since tree_mappable always seems to be false.
+                }
                 
                 //prevent the default selection
-                e.preventDefault();
-                //determine if node is selected          
-                if (this.$el.tree('isNodeSelected', node)) {
+                //load children if necessary
+                console.log(node);
+                var that = this;
+                console.log(that);
+                if (node.children.length === 0) {
+                    that.collection.load(function () {
+                            that.render();
+                            if (that.$el.tree('isNodeSelected', node)) {
+                                console.log("deselect");
+                                that.$el.tree('selectNode', null);
+                            } else {
+                            //select the node if mappable
+                                if (treeMappable !== false) {
+                                    if (mappable !== false) {
+                                        console.log("select");
+                                        that.$el.tree('selectNode', node);
+                                        //$(this.selectedElement).html(node.name);
+                                    }
+                                }
+                            }
+                            e.preventDefault();
+                        },
+                        id, that.collection);
+                } else if (this.$el.tree('isNodeSelected', node)) {//determine if node is selected 
                     console.log("deselect");
                     this.$el.tree('selectNode', null);
                 } else {
                 //select the node if mappable
                     if (treeMappable !== false) {
                         if (mappable !== false) {
+                            console.log("select");
                             this.$el.tree('selectNode', node);
                             //$(this.selectedElement).html(node.name);
                         }
                     }
-                }
-                //load children if necessary
-                    console.log(node);
-                    var that = this;
-                    console.log(that);
-                    if (node.children.length === 0) {
-                        that.collection.load(function () {
-                            that.render();
-                            that.$el.tree('selectNode', node); }
-                         , id, that.collection);
                     }
+                e.preventDefault();
                 
+            },
+            
+            treeInit : function (e) {
+                console.log("tree init caught");
+                e.preventDefault();
             },
             
             loadMoreRoot : function (e) {
@@ -489,10 +518,6 @@
         });
 
         var CatTreeView = TreeView.extend({
-            events : {
-                "tree.select" : "treeSelect",
-                "tree.open" : "treeOpen"
-            },
 
             treeSelect : function (e) {
                 var node = e.node;
@@ -792,7 +817,6 @@
         });
         var catview = new CatTreeView({
             coll : catTreeCollection,
-            selectTag : "#catselect",
             el: "#cattree",
             selectedElement: "#activeCat",
             loadButton: "#LoadMoreCAT"
