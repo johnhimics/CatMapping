@@ -199,9 +199,9 @@
                 var lazyLoadEnabled = that.TOTALNODES > LAZYLOADINGTHRESHHOLD;
                 var childPagingEnabled = (lazyLoadEnabled &&
                                           that.MAXCHILDNODES > CHILDPAGINGTHRESHHOLD);
-//                console.log(that.TOTALNODES);
-//                console.log(that.MAXCHILDNODES);
-//                console.log(that.page_size);
+               //  console.log(that.TOTALNODES);
+               //  console.log(that.MAXCHILDNODES);
+               // console.log(that.page_size);
                 
                 //override for testing
                 /*lazyLoadEnabled = true;
@@ -241,7 +241,7 @@
                 
                 // **fetch everything
                 if (lazystyle === 0 || typeof (lazystyle) === "undefined") { 
-//                    console.log("LazyLoad 0");
+                    //console.log("LazyLoad 0");
                     aRequest = that.fetch({silent: true})
                         .always(function () {
                             spinner.stop();
@@ -283,7 +283,7 @@
                 }
                 // **Load all nodes of a parent_id
                 else if (lazystyle === 2) { 
-//                    console.log("Lazyload 2");
+                    //console.log("Lazyload 2");
                     that.fetch(
                         {remove: false,
                          silent: true,
@@ -307,7 +307,7 @@
                 }
                 // not implemented.
                 else if (lazystyle === 3) { 
-//                    console.log("Lazyload 3");
+                    //console.log("Lazyload 3");
                 }
             }
         });
