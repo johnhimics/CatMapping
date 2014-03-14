@@ -57,8 +57,7 @@
             top: 'auto', // Top position relative to parent in px
             left: 'auto' // Left position relative to parent in px
         };
-    var aRequest;
-    var requests = [];
+
     var spintarget = document.getElementById('spinnerDIV');
     var spinner = new Spinner(opts);
     spinner.spin(spintarget);
@@ -155,9 +154,7 @@
                 that.statsURL = that.statsURLroot + that.id;
                 that.reset(null, {silent: true}); //empty the collection
                 that.getStats(function () {
-                    that.load(function () {
-                        that.trigger("reset"); //to fire the reset event.
-                    });
+                    that.load();
                 });
             },
 
@@ -166,9 +163,10 @@
                 spinner.spin(spintarget);
                 var stats = $.getJSON(that.statsURL)
                     .always(function () {
-                        spinner.stop();
+                        
                     })
                     .done(function () {
+                        spinner.stop();
                         if (typeof (stats.responseJSON.TOTALNODES) !== "undefined") {
                             that.TOTALNODES = stats.responseJSON.total_nodes;
                             that.MAXCHILDNODES = stats.responseJSON.max_child_nodes;
@@ -177,12 +175,13 @@
                             that.MAXCHILDNODES = stats.responseJSON.results.max_child_nodes;
                         }
                         if (typeof (callback) !== "undefined") {
-                            that.load(callback); 
+                            that.load(); 
                         } else {
                             that.load();
                         }
                     })
                     .fail(function () {
+                        spinner.stop();
                         that.TOTALNODES = 1;
                         that.MAXCHILDNODES = 1;
                         if (typeof (callback) !== "undefined") {callback(); }
@@ -190,27 +189,21 @@
                     
             },
 
-            load: function (callback, id, context) {
+            load: function (id, context) {
                 if (typeof (context) !== "undefined") {
                     var that = context;
                 } else {
                     var that = this;
                 }
                 
-                //ELIMINATE THE CALLBACK FOR DEBUGING PURPOSES
-                callback = function () {};
-                
                 var lazyLoadEnabled = that.TOTALNODES > LAZYLOADINGTHRESHHOLD;
                 var childPagingEnabled = (lazyLoadEnabled &&
                                           that.MAXCHILDNODES > CHILDPAGINGTHRESHHOLD);
-               //  console.log(that.TOTALNODES);
-               //  console.log(that.MAXCHILDNODES);
-               // console.log(that.page_size);
-                
+
                 //override for testing
                 /*lazyLoadEnabled = true;
                 childPagingEnabled = true;*/
-                
+
                 if (lazyLoadEnabled) {
 
                     if(typeof (id) !== "undefined") {
@@ -219,51 +212,49 @@
                             console.log("Load the child nodes in pages");
                             that.paged = true;
                             console.log("id: "+id);
-                            that.lazyload(callback, 1, that.page_num, that.page_size, id);
+                            xhr = that.lazyload(1, that.page_num, that.page_size, id);
                             //ADD A LOAD MORE HERE.
                         } else {
                             //get all the root nodes
                             console.log("Load all child nodes");
-                            that.lazyload(callback, 1, that.page_num, null, id);
+                            xhr = that.lazyload(1, that.page_num, null, id);
                         }
                     } else {
                         console.log("Load all root nodes");
-                        that.lazyload(callback, 2, that.page_num, that.TOTALNODES, 0); //**TODO** that.page_size should be replaced with null to load ALL
+                        xhr = that.lazyload(2, that.page_num, that.TOTALNODES, 0); //**TODO** that.page_size should be replaced with null to load ALL
                     }
 
                 } else {
                     console.log("I'm NOT lazy!'");
                     that.paged = false;
-                    that.lazyload(callback, 0);
+                    xhr = that.lazyload(0);
                 }
-
+                return xhr;
             }, //Implementation of lazy loading
 
-            lazyload: function (callback, lazystyle, page_number, page_size, parent_id) {
+            lazyload: function (lazystyle, page_number, page_size, parent_id) {
                 var that = this;
-                spinner.spin(spintarget);
                 
+                spinner.spin(spintarget);
                 // **fetch everything
                 if (lazystyle === 0 || typeof (lazystyle) === "undefined") { 
                     //console.log("LazyLoad 0");
-                    aRequest = that.fetch({silent: true})
+                    xhr = that.fetch({silent: true})
                         .always(function () {
-                            spinner.stop();
+                            
                         })
                         .done(function () {
-                            that.trigger("add");
-                            if (typeof (callback) !== "undefined") { callback(); }
+                            spinner.stop();
                             that.trigger("reset");
                         })
                         .fail(function () {
+                            spinner.stop();
                             console.log("Tree Collection Load failed");
-                            if (typeof (callback) !== "undefined") { callback(); } //try to render anyway
                         });
-                    requests.push(aRequest);
                 }
                 // **lazy load based on page_num and page_size
                 else if (lazystyle === 1) { 
-                    that.fetch(
+                    xhr = that.fetch(
                         {remove: false,
                          silent: true,
                             data: {
@@ -276,21 +267,16 @@
                             spinner.stop();
                         })
                         .done(function () {
-                            if (typeof (callback) !== "undefined") {
-                                callback();
-                            }
                             that.trigger("reset");
                         })
                         .fail(function () {
                             console.log("Tree Collection Load failed");
-                            if (typeof (callback) !== "undefined") { callback(); } //try to render anyway
                         });
-                    requests.push(aRequest);
                 }
                 // **Load all nodes of a parent_id
                 else if (lazystyle === 2) { 
                     //console.log("Lazyload 2");
-                    that.fetch(
+                    xhr = that.fetch(
                         {remove: false,
                          silent: true,
                             data: {
@@ -303,9 +289,6 @@
                             spinner.stop();
                         })
                         .done(function () {
-                            if (typeof (callback) !== "undefined") {
-                                callback();
-                            }
                             console.log(that);
                             that.trigger("reset");
                         })
@@ -317,6 +300,7 @@
                 else if (lazystyle === 3) { 
                     //console.log("Lazyload 3");
                 }
+                return xhr
             }
         });
 
@@ -352,7 +336,7 @@
                 this.loadButton = props.loadButton;
                 //workaround for select tag event
                 this.listenTo(this.collection, "reset", this.render);
-                this.listenTo(this.collection, "add", this.render); //added to defeat the callback/xhr race
+                //this.listenTo(this.collection, "add", this.render); //added to defeat the callback/xhr race
                 this.listenTo(this.collection, "sync", this.syncrender);
                 $(this.loadButton).click({that: this}, this.loadMoreRoot);
                 $(this.selectTag).change({that: this}, this.selected);
@@ -361,13 +345,12 @@
                 
                 //load the collection
                 var that = this;
-                this.collection.getStats(function () { that.render(); });
+                this.collection.getStats(/*function () { that.render(); }*/);
             },
             
             syncRender : function () {
                 console.log("Sync event caught");
                 console.log(arguments);
-                this.render();
             },
 
             render: function (collection, resp, options) {
@@ -413,7 +396,6 @@
             collectionChanged : function (e) {
                 var that = this;
                 this.collection.page_num = 0; //reset page number so lazy loading starts over
-                that.render();
             }, // function called when the collection is updated
 
             getTreeData : function () {
@@ -469,7 +451,8 @@
             }, // recursive function to build tree data
 
             treeSelect : function (e) {
-                e.preventDefault();
+                console.log("TreeSelect event caught");
+                //e.preventDefault();
                 var node = e.node;
                 if (node !== null) {
                     $(this.selectedElement).html(node.name);
@@ -484,12 +467,12 @@
             },
             
             treeClose : function () {
-                console.log("Tree Open event caught");
+                console.log("Tree Close event caught");
             },
 
             treeClick : function (e) {
                 //prevent the default selection
-                e.preventDefault();
+                //e.preventDefault();
                 console.log("Tree click event caught");
                 var node = e.node;
                 var id = e.node.id;
@@ -498,7 +481,7 @@
                 var mappable = nodeArray.attributes.is_mappable;
                 var treeMappable = true;
                 console.log(this.selectTag);
-                if (typeof (this.selectTag) !== "undefined") {
+                if (typeof (this.selectTag) !== "undefined") { //this if statement skips this section for the category tree
                     var cse_id = parseInt($(this.selectTag)[0].value, 10);
                     nodeArray = this.selectCollection.where({id: cse_id});
                     var treeMappable = nodeArray[0].attributes.enforce_leaf_mappings;
@@ -509,12 +492,14 @@
                 //load children if necessary
                 console.log(node);
                 var that = this;
-                console.log(that);
+                console.log("that", that);
                 if (node.children.length === 1) { if(node.children[0].id === -1) {
-                    that.collection.load(function () {
-                            that.render();
+                    console.log("Must load children - TreeClick");
+                    that.collection.load(id, that.collection)
+                        .done(function () {
+                            console.log("Child Node loading begins here");
                             if (that.$el.tree('isNodeSelected', node)) {
-                                console.log("deselect");
+                                console.log("deselect - from within child load - TreeClick");
                                 that.$el.tree('selectNode', null);
                             } else {
                             //select the node if mappable
@@ -522,28 +507,25 @@
                                     if (mappable !== false) {
                                         console.log("select");
                                         that.$el.tree('selectNode', node);
-                                        //$(this.selectedElement).html(node.name);
                                     }
                                 }
                             }
                             e.preventDefault();
-                        },
-                        id, that.collection);
+                        });
                 }} else if (this.$el.tree('isNodeSelected', node)) {//determine if node is selected 
-                    console.log("deselect");
+                    console.log("deselect - TreeClick");
                     this.$el.tree('selectNode', null);
                 } else {
+                    console.log("no child loading - TreeClick");
                 //select the node if mappable
                     if (treeMappable !== false) {
                         if (mappable !== false) {
-                            console.log("select");
+                            console.log("select - TreeClick");
                             this.$el.tree('selectNode', node);
                             //$(this.selectedElement).html(node.name);
                         }
                     }
                     }
-                //prevent the default selection (duplicate)
-                e.preventDefault();
                 
             },
             
@@ -555,7 +537,7 @@
             loadMoreRoot : function (e) {
                 var thatview = e.data.that;
                 thatview.collection.page_num += 1;
-                thatview.collection.load(function () { thatview.render(); }, id=0, context=thatview.collection);
+                thatview.collection.load(id=0, context=thatview.collection);
             }
         });
 
@@ -613,12 +595,13 @@
 
             getStats: function (callback) {
                 var that = this;
-                
+                spinner.spin(spintarget);
                 var stats = $.getJSON(that.statsURL)
                     .always(function () {
-                        spinner.spin(spintarget);
+                        
                     })
                     .done(function () {
+                        spinner.stop();
                         that.total_mappings = stats.responseJSON.total_mappings;
                         if (typeof (callback) !== "undefined") {callback(); }
                     })
@@ -765,9 +748,10 @@
                 this.collection.setURL(this.cse.collection.id);
                 this.collection.getStats();
                 var that = this;
-                aRequest = that.collection.fetch()
+                spinner.spin(spintarget);
+                that.collection.fetch()
                     .always(function () {
-                        spinner.spin(spintarget);
+                        
                     })
                     .done(function (c, r) {
                         that.pages = Math.floor((r.length / that.items_per_page)) + 1;
@@ -779,7 +763,6 @@
                         that.pages = 1;
                         that.render();
                     });
-                requests.push(aRequest);
             }
         });
 
@@ -891,7 +874,6 @@
         });
 
         Backbone.history.start();
-        //$.when.apply($, requests).done(function () { spinner.stop(); });
 
     });
 }(jQuery, _));
