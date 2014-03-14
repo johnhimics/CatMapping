@@ -63,7 +63,7 @@
     spinner.spin(spintarget);
     
     // GLOBAL VARIABLES
-    var LAZYLOADINGTHRESHHOLD = 80, CHILDPAGINGTHRESHHOLD = 200, CHILDPAGESIZE = 5;
+    var LAZYLOADINGTHRESHHOLD = 800, CHILDPAGINGTHRESHHOLD = 200, CHILDPAGESIZE = 5;
     // FOR THE SERVER 
     var CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
         CSECHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategory/",
@@ -200,35 +200,33 @@
                 var childPagingEnabled = (lazyLoadEnabled &&
                                           that.MAXCHILDNODES > CHILDPAGINGTHRESHHOLD);
 
-                //override for testing
-                /*lazyLoadEnabled = true;
-                childPagingEnabled = true;*/
-
                 if (lazyLoadEnabled) {
 
                     if(typeof (id) !== "undefined") {
                         if (childPagingEnabled) {
-                            // get the first page of root nodes
                             console.log("Load the child nodes in pages");
                             that.paged = true;
                             console.log("id: "+id);
                             xhr = that.lazyload(1, that.page_num, that.page_size, id);
                             //ADD A LOAD MORE HERE.
                         } else {
-                            //get all the root nodes
                             console.log("Load all child nodes");
                             xhr = that.lazyload(1, that.page_num, null, id);
                         }
                     } else {
                         console.log("Load all root nodes");
-                        xhr = that.lazyload(2, that.page_num, that.TOTALNODES, 0); //**TODO** that.page_size should be replaced with null to load ALL
+                        xhr = that.lazyload(2, that.page_num, that.TOTALNODES, 0);
                     }
-
                 } else {
-                    console.log("I'm NOT lazy!'");
-                    that.paged = false;
-                    xhr = that.lazyload(0);
-                }
+                    if (typeof (id) !== "undefined") {
+                        console.log("Load all child nodes");
+                        xhr = that.lazyload(1, that.page_num, null, id);
+                    } else {
+                        console.log("I'm NOT lazy!'");
+                        that.paged = false;
+                        xhr = that.lazyload(0);
+                }}
+                
                 return xhr;
             }, //Implementation of lazy loading
 
@@ -266,8 +264,11 @@
                         .always(function () {
                             spinner.stop();
                         })
-                        .done(function () {
-                            that.trigger("reset");
+                        .done(function (collection, resptext, resp) {
+                            console.log("LS1 done");
+                            console.log(resp);
+                            resp = {"results": resp.responseJSON.results}; //restructure for the treeView render()
+                            that.trigger("reset", collection, resp);
                         })
                         .fail(function () {
                             console.log("Tree Collection Load failed");
@@ -288,9 +289,10 @@
                         .always(function () {
                             spinner.stop();
                         })
-                        .done(function () {
-                            console.log(that);
-                            that.trigger("reset");
+                        .done(function (collection, resptext, resp) {
+                            console.log("LS2 done");
+                            resp = {"results": resp.responseJSON.results}; //restructure for the treeView render()
+                            that.trigger("reset", collection, resp);
                         })
                         .fail(function () {
                             console.log("Tree Collection Load failed");
@@ -362,10 +364,13 @@
                 //}
                 //pass tree data to tree
                 if (typeof (resp) !== "undefined") {
+                    console.log("resp.results is:", resp.results);
+                    window.resp = resp;
                     if (resp.results.length !== 0 ) { 
                         if (typeof (resp.results[0].parent_id) !== "undefined") {
                         var node = this.$el.tree('getNodeById', resp.results[0].parent_id);
-                        this.$el.tree('loadData', resp, node);
+                        console.log("node is: ", node);
+                        this.$el.tree('loadData', resp.results, node);
                         console.log("added children");
                 }} else if (resp.results.length === 0){
                     //do no loading, because there are no children
@@ -421,7 +426,6 @@
                             data.push(root);
                         },
                                that);
-                console.log(data);
                 return data;
             }, // Builds the tree data, uses recurHelper
 
@@ -452,7 +456,7 @@
 
             treeSelect : function (e) {
                 console.log("TreeSelect event caught");
-                //e.preventDefault();
+                e.preventDefault();
                 var node = e.node;
                 if (node !== null) {
                     $(this.selectedElement).html(node.name);
@@ -472,7 +476,7 @@
 
             treeClick : function (e) {
                 //prevent the default selection
-                //e.preventDefault();
+                e.preventDefault();
                 console.log("Tree click event caught");
                 var node = e.node;
                 var id = e.node.id;
@@ -487,7 +491,6 @@
                     var treeMappable = nodeArray[0].attributes.enforce_leaf_mappings;
                     treeMappable = true;  //Override treeMappable  **TODO** implemented since tree_mappable always seems to be false.
                 }
-                
                 
                 //load children if necessary
                 console.log(node);
@@ -825,6 +828,8 @@
             id: 2,
             statsURL: CSESTATSURL
         });
+        window.cseTreeCollection = cseTreeCollection;
+        
         var cseview = new TreeView({
             coll : cseTreeCollection,
             selectTag : "#cseselect",
@@ -833,23 +838,31 @@
             selectCollection: cseselectcoll,
             loadButton: "#LoadMoreCSE"
         });
+        window.cseview = cseview;
+        
         var catTreeCollection = new CatTreeCollection({
             childURL: CATCHILDURL,
             rootURL: CATROOTURL,
             statsURL: CATSTATSURL,
             id: 1
         });
+        window.catTreeCollection = catTreeCollection;
+        
         var catview = new CatTreeView({
             coll : catTreeCollection,
             el: "#cattree",
             selectedElement: "#activeCat",
             loadButton: "#LoadMoreCAT"
         });
+        window.catview = catview;
+        
         var mapTreeCollection = new MapCollection({
             mapurl : MAPURL,
             rootStatsURL : MAPSTATSURL,
             cse: 2
         });
+        window.mapTreeCollection = mapTreeCollection;
+        
         var mapView = new MapView({
             el : "#MappingTable",
             collection : mapTreeCollection,
@@ -858,6 +871,8 @@
             cat : catview,
             selectTag : "#cseselect"
         });
+        window.mapView = MapView;
+        
 
         //*** ROUTER
         //declare the backbone router
