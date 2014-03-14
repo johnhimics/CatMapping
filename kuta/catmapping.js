@@ -60,7 +60,14 @@
     var spintarget = document.getElementById('spinnerDIV');
     var spinner = new Spinner(opts);
     spinner.spin(spintarget);
-    
+    // GLOBAL VARIABLES
+    var LAZYLOADINGTHRESHHOLD = 80, CHILDPAGINGTHRESHHOLD = 200, CHILDPAGESIZE = 5;
+    // FOR THE SERVER
+    var APIROOT = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/";
+
+    // **TODO: rework the way URLs are configured. Utilise the URL
+    // attribute as a function technique from Backbone to facilitate
+    // configuration
     // GLOBAL VARIABLES
     var LAZYLOADINGTHRESHHOLD = 800, CHILDPAGINGTHRESHHOLD = 200, CHILDPAGESIZE = 5;
     // FOR THE SERVER 
