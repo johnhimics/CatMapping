@@ -1,4 +1,11 @@
 # -*- mode: gitignore; -*-
+
+/api/*
+/api
+\api
+\api\*
+
+
 *.py[cod]
 
 # C extensions

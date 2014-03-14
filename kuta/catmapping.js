@@ -25,7 +25,7 @@
 /*jslint vars: true */
 /*globals $, jQuery, _, Backbone, console, Mustache, Spinner*/
 
-
+//test//
 
 
 /* This closure keeps your globals from leaking into the global
@@ -659,8 +659,8 @@
                 this.cse = props.cse;
                 this.cat = props.cat;
                 this.selectTag = props.selectTag;
-                //this.listenTo($(this.button), 'click', this.buttonClick);
-                $(this.button).click({that: this}, this.buttonClick); //Mapping Button
+                //this.listenTo($(this.button), 'click', this.MapThisButtonClick);
+                $(this.button).click({that: this}, this.MapThisButtonClick); //Mapping Button
                 this.listenTo(this.cse.collection, "reset", this.collectionChanged);
                 var that = this;
                 that.collectionChanged();
@@ -709,7 +709,7 @@
                 var tableData =
                     {data : names,
                         pages : pages,
-                        btnclick: that.btnclick };
+                        btnclick: that.paginationBtnClick };
 
                 var output = Mustache.render(source,
                     tableData,
@@ -717,13 +717,13 @@
                 $(that.el).html(output);
 
                 //map the buttons
-                that.$el.off("click", '#PageButton', that.btnclick);
+                that.$el.off("click", '#PageButton', that.paginationBtnClick);
                 that.$el.on("click", '#PageButton', {page: -1, that: that},
-                                    that.btnclick);
+                                    that.paginationBtnClick);
                 $('#btnnext').click({page: 'next', that: that},
-                                    that.btnclick);
+                                    that.paginationBtnClick);
                 $('#btnprev').click({page: 'prev', that: that},
-                                    that.btnclick);
+                                    that.paginationBtnClick);
                 //map the delete links
                 that.$el.off("click", '#DeleteLink', that.deleteLinkClicked);
                 that.$el.on("click", '#DeleteLink', {that: that}, that.deleteLinkClicked);
@@ -739,7 +739,7 @@
                 that.collection.sync("delete", that.collection.remove(model));
             },
             
-            btnclick : function (e) {
+            paginationBtnClick : function (e) {
                 var that = e.data.that;
                 if (e.data.page === 'next') {
                     if ((that.page + 1) <= that.pages) {that.page = that.page + 1; } //replace with num of pages
@@ -752,7 +752,7 @@
                 that.render();
             },
 
-            buttonClick : function (e) {
+            MapThisButtonClick : function (e) {
                 var that = e.data.that;
                 var selectedCSE = that.cse.$el.tree('getSelectedNode');
                 var selectedCat = that.cat.$el.tree('getSelectedNode');
@@ -762,6 +762,7 @@
                 var newMapping = {"yourcategory_id" : selectedCat.id,
                                   "cse_id" : parentID,
                                   "csecategory_id" : selectedCSE.id};
+                console.log(newMapping);
                 var newModel = that.collection.create(newMapping);
                 that.render();
             },
