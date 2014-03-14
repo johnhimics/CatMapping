@@ -10,13 +10,12 @@
  * CSE tree created (no lazy loading)
  * 
  *
- * TODO:    Loading spinner (perfect it)
+ * TODO:    
  *          Lazy-loading, once API is built
  *          Make sure mappings save properly, once API is built
  *          EMULATE HTTP option enable (get POST and DELETE to work)
  *
  * NOTES:   Every CSE has enable_tree_mappings = false ??
- *          loading spinner jumps and freezes
  *          
  * 
  */
@@ -215,7 +214,7 @@
                         }
                     } else {
                         console.log("Load all root nodes");
-                        xhr = that.lazyload(2, that.page_num, that.TOTALNODES, 0);
+                        xhr = that.lazyload(0, that.page_num, that.TOTALNODES, 0);
                     }
                 } else {
                     if (typeof (id) !== "undefined") {
@@ -237,7 +236,15 @@
                 // **fetch everything
                 if (lazystyle === 0 || typeof (lazystyle) === "undefined") { 
                     //console.log("LazyLoad 0");
-                    xhr = that.fetch({silent: true})
+                    xhr = that.fetch(
+                        {remove: false,
+                         silent: true,
+                            data: {
+                                page_number: page_number,
+                                page_size: page_size,
+                                parent_id: parent_id
+                            }}
+                    )
                         .always(function () {
                             
                         })
@@ -268,6 +275,9 @@
                             console.log("LS1 done");
                             console.log(resp);
                             resp = {"results": resp.responseJSON.results}; //restructure for the treeView render()
+                            _.each(resp.results, function (r) {
+                                r.children = [{'id': -1, "label": "load more"}]
+                            });
                             that.trigger("reset", collection, resp);
                         })
                         .fail(function () {
@@ -292,6 +302,9 @@
                         .done(function (collection, resptext, resp) {
                             console.log("LS2 done");
                             resp = {"results": resp.responseJSON.results}; //restructure for the treeView render()
+                            _.each(resp.results, function (r) {
+                                r.children = [{'id': -1, "label": "load more"}]
+                            });
                             that.trigger("reset", collection, resp);
                         })
                         .fail(function () {
