@@ -452,7 +452,7 @@
                     console.log("TREECLICK - Loading children to replace the placeholder!")
                     var pagenum = Math.floor(node.children.length / that.collection.page_size);
                     console.log("Pagenum: ", pagenum);
-                    that.collection.load(id, pagenum+1)
+                    that.collection.load(id, pagenum)
                         .done( function () {
                             //restore the tree state
                             that.$el.tree('setState', state);
