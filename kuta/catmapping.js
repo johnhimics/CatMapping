@@ -150,6 +150,7 @@
                 that.id = id;
                 that.url = that.rootURL + that.id;
                 that.statsURL = that.statsURLroot + that.id;
+                that.page_num = 0;
                 that.reset(null, {silent: true}); //empty the collection
                 that.getStats();
             },
@@ -193,7 +194,7 @@
 
                 var xhr;
                 if (that.lazyLoadEnabled) {
-                    if (typeof(id) === "number") {
+                    if (typeof(id) === "number" && id !== 0) {
                         console.log("LOAD - ID specified");
                         //There is an id specified, load that node's children
                         if (that.childPagingEnabled) {
@@ -216,10 +217,10 @@
                     } else {
                         // no ID specified, load the root nodes
                         console.log("LOAD - no ID specified, load the root nodes");
-                        xhr = that.lazyload(null, null, 0)
+                        xhr = that.lazyload(that.page_num, that.page_size, 0)
                         .done( function () {
                             console.log("LOAD - ", arguments);
-                            that.trigger("reset");
+                            that.trigger("add");
                         });
                     }
                 } else {
@@ -426,6 +427,7 @@
                 if (that.$el.tree('getSelectedNode') === node) {
                     that.$el.tree('selectNode', null);
                 } else {
+                    //that.$el.tree('openNode', node);
                     that.$el.tree('selectNode', node);
                 }
                 
@@ -465,7 +467,7 @@
                 var thatview = e.data.that;
                 thatview.collection.page_num += 1;
                                         //(id, context)
-                thatview.collection.load(0, thatview.collection);
+                thatview.collection.load(0);
             }
         });
 
