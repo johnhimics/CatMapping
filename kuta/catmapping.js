@@ -639,11 +639,14 @@
             deleteLinkClicked : function (e) {
                 console.log(e);
                 var that = e.data.that;
-                var model = that.collection.where({csecategory_id: e.currentTarget.dataset.cse,
-                                                   yourcategory_id : e.currentTarget.dataset.cat});
-                console.log(model);
-                
-                that.collection.sync("delete", that.collection.remove(model));
+                console.log(that.collection);
+                var model = that.collection.findWhere({csecategory_id: parseInt(e.currentTarget.dataset.cse),
+                    yourcategory_id: parseInt(e.currentTarget.dataset.cat)});
+                console.log(model, e.currentTarget.dataset.cse, e.currentTarget.dataset.cat);
+
+                // that.collection.sync("delete", that.collection.remove(model));
+                //that.collection.sync("delete", model);
+                model.destroy();
             },
             
             paginationBtnClick : function (e) {
@@ -671,6 +674,7 @@
                                   "csecategory_id" : selectedCSE.id};
                 console.log(newMapping);
                 var newModel = that.collection.create(newMapping);
+                console.log(newModel);
                 that.render();
             },
 
