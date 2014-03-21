@@ -15,3 +15,14 @@ curl -v -X POST "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mapping
 
 curl -v -X POST "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mappings/2" "{\"yourcategory_id\":\"130224\",\"cse_id\":\"2\",\"csecategory_id\":\"82868\"}" 1> curl.txt
 
+To do a DELETE do this:
+
+
+curl -v -X POST "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mappings/2" -d "{\"yourcategory_id\":\"130224\","cse_id\":\"2\",\"csecategory_id\":\"82868\"}" -H "Content-Type: application/json" -H "X-HTTP-Method-Override: DELETE"
+
+
+
+To do a POST do this:
+
+
+curl -v -X POST "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mappings/2" -d "[{\"yourcategory_id\":\"130224\","cse_id\":\"2\",\"csecategory_id\":\"82868\"}]" -H "Content-Type: application/json" -H "X-HTTP-Method-Override: POST"

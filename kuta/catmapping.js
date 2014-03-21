@@ -4,14 +4,12 @@
  *
  * Author: John Himics
  * Email: J.Himics@gmail.com
- * Version: 0.4
+ * Version: 0.5
  * 
- * Dropdown CSE selector created
- * CSE tree created (no lazy loading)
  * 
  *
  * TODO:    
- *          Lazy-loading, once API is built
+ *          Lazy-loading
             The categories link seems to not return the right data from the server.
  *          Make sure mappings save properly, once API is built
  *          EMULATE HTTP option enable (get POST and DELETE to work)
@@ -68,7 +66,7 @@
     // **TODO: rework the way URLs are configured. Utilise the URL
     // attribute as a function technique from Backbone to facilitate
     // configuration
-    // FOR THE SERVER 
+    // FOR THE SERVER
     var APIROOT = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/";
     var CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
         CSECHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategory/",
@@ -83,8 +81,36 @@
     /* This is the preferred onDocumentReady syntax for jQuery at the moment. */
     $(function () {
     
-	//*** TREE STRUCTURES
-	//DataModel - represents each node
+	
+        // add this to your namespace and have all of your collections inherit from it
+        var JSON_HANDLER_COLLECTION = Backbone.Collection.extend({
+            APIURL: "http://channelmanager.espsoftware.com/newadmin/api/v1.0/",
+            stem: "",
+            statsstem: "",
+
+            parse: function (resp, xhr) {
+                if (typeof (resp.results) !== "undefined") {
+                    return resp.results;
+                } else if (typeof (resp.result) !== "undefined") {
+                    return resp.result;
+                } else {
+                    console.log("no results array, returning resp");
+                    return resp;
+                }
+            },
+
+            //URL handler
+            url: function () {
+                return this.APIURL + "/" + this.stem;
+            },
+
+            statsURL: function () {
+                return this.APIURL + "/" + this.statsstem;
+            }
+        });
+        //*** TREE STRUCTURES
+        
+        //DataModel - represents each node
         var TreeNode = Backbone.Model.extend({
             //defaults
             parent_id: 0,
@@ -96,20 +122,7 @@
             }
 
         });
-        // add this to your namespace and have all of your collections inherit from it
-        var JSON_HANDLER_COLLECTION = Backbone.Collection.extend({
-            parse: function (resp, xhr) {
-                if (typeof (resp.results) !== "undefined") {
-                    return resp.results;
-                } else if (typeof (resp.result) !== "undefined") {
-                    return resp.result;
-                } else {
-                    console.log("no results array, returning resp");
-                    return resp;
-                }
-            }
-        });
-        
+
         // Tree Collection - represents the tree
         var TreeCollection = JSON_HANDLER_COLLECTION.extend({
             model: TreeNode,
@@ -172,7 +185,7 @@
                             that.MAXCHILDNODES = stats.responseJSON.results.max_child_nodes;
                         } //TODO remove this, only exists because of inconsistent syntax
 
-                        that.load();
+                        that.load(null, 0);
                     })
                     .fail(function () {
                         spinner.stop();
@@ -217,7 +230,7 @@
                     } else {
                         // no ID specified, load the root nodes
                         console.log("LOAD - no ID specified, load the root nodes");
-                        xhr = that.lazyload(that.page_num, that.page_size, 0)
+                        xhr = that.lazyload(pagenum, that.page_size, 0)
                         .done( function () {
                             console.log("LOAD - ", arguments);
                             that.trigger("add");
@@ -361,9 +374,15 @@
                             root.children = [{"label" : " ",
                                              "id": -1 }];
                         }
+                        
                         data.push(root);
-                    },
-                               that);
+                    }, that);
+                    // add a "Load More" child if lazy loading is enabled
+                    if(that.collection.lazyLoadEnabled === true) {
+                        console.log("Added a load more child");
+                        data.push({"label" : "Load More",
+                                               "id": -2 });
+                    }
                 return data;
             }, // Builds the tree data, uses recurHelper
 
@@ -387,8 +406,13 @@
                                              "id": -1 }];
                         }
                         data.push(child);
-                    },
-                               that);
+                    }, that);
+
+                if(that.collection.childPagingEnabled === true) {
+                    console.log("Added a child 'load more' child");
+                    data.push({"label" : "Load More",
+                                           "id": -3 });
+                }
                 return data;
             }, // recursive function to build tree data
 
@@ -421,7 +445,7 @@
                 var that = this;
                 var node = e.node;
                 var id = e.node.id;
-                console.log(node);
+                console.log("node: ",node);
 
                 //select the node?
                 if (that.$el.tree('getSelectedNode') === node) {
@@ -439,6 +463,10 @@
                         // it IS the placeholder, try to load the children
                         console.log("TREECLICK - LOAD INIT CHILDREN");
                         loadChildren = true;
+                    } else if(node.children[0].id === -3) {
+                        // it IS the placeholder, try to load the children
+                        console.log("TREECLICK - LOAD INIT CHILDREN - load more child exists");
+                        loadChildren = true;
                     }
                 } else {
                     // try to load more children
@@ -448,11 +476,29 @@
                     }
                 }
 
+                //if the load more child, then load more!
+                if (id === -2) {
+                    console.log("TREECLICK - ROOT LOAD MROE CHILD CLICKED");
+                    console.log(e);
+                    e.data = {};
+                    e.data= {that: that};
+                    that.loadMoreRoot(e);
+                    that.$el.tree('selectNode', null);
+                } else if (id === -3) {
+                    console.log("TREECLICK - CHILD LOAD MORE CHILD CLICKED");
+                    console.log("node: ",node);
+                    node = node.parent;
+                    id = node.id;
+                    loadChildren = true;
+                    that.$el.tree('selectNode', null);
+                }
+
                 if (loadChildren) {
                     that.$el.tree('openNode', node);
                     var state = that.$el.tree('getState');
-                    console.log("TREECLICK - Loading children to replace the placeholder!")
+                    console.log("TREECLICK - Loading children!");
                     var pagenum = Math.floor(node.children.length / that.collection.page_size);
+                    console.log("page number: ", pagenum);
                     console.log("Pagenum: ", pagenum);
                     that.collection.load(id, pagenum)
                         .done( function () {
@@ -460,14 +506,16 @@
                             that.$el.tree('setState', state);
                         });
                 }
-                
             },
             
             loadMoreRoot : function (e) {
+                console.log(e, e.data.that);
+
                 var thatview = e.data.that;
                 thatview.collection.page_num += 1;
+                var pagenum = Math.floor(thatview.collection.where({parent_id: 0}).length / thatview.collection.page_size)
                                         //(id, context)
-                thatview.collection.load(0);
+                thatview.collection.load(0, pagenum);
             }
         });
 
