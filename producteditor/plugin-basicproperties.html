@@ -1,0 +1,21 @@
+<script type="text/template" id="string-field">
+<label for="basic-field-<%= key %>"><%= key %></label>
+<textarea id="basic-field-<%= key %>"><%= value %></textarea>
+</script>
+
+<script type="text/template" id="number-field">
+<label for="basic-field-<%= key %>"><%= key %></label>
+<input type="text" value="<%= value %>" />
+</script>
+
+
+<script type="text/template" id="bool-field">
+<label for="basic-field-<%= key %>"><%= key %></label>
+<input type="checkbox" <% if (value) { %>CHECKED<% } %> />
+</script>
+
+
+<script type="text/template" id="date-field">
+<label for="basic-field-<%= key %>"><%= key %></label>
+<input type="text" value="<%= value %>" />
+</script>

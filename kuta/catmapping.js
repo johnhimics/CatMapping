@@ -34,7 +34,7 @@
     //"use strict";
     //EMULATE HTTP AND JSON
     Backbone.emulateHTTP = true;
-    Backbone.emulateJSON = true;
+    //Backbone.emulateJSON = true;
     
     /*Spin.js for initial loading*/
     var opts = {
@@ -332,8 +332,11 @@
             },
 
             render: function (resp) {
+                console.log("making data");
                 var treedata = this.getTreeData();
+                console.log("data made");
                 this.$el.tree('loadData', treedata);
+                console.log("data loaded");
             },
 
             events: {
@@ -503,7 +506,19 @@
                     that.collection.load(id, pagenum)
                         .done( function () {
                             //restore the tree state
+                            console.log(".done arguements are: ", arguments);
                             that.$el.tree('setState', state);
+                            if(arguments[0].results.length < that.collection.page_size) {
+                                //delete the "load more" node
+                                //find the node
+                                var delnode = _.where(that.$el.tree('getTree').children, {name: node.name});
+                                    console.log(delnode);
+                                    delnode = _.where(delnode[0].children, {name: "Load More"});
+                                    console.log(delnode);
+                                console.log("the nodes are: " , node, delnode[0]);
+                                that.$el.tree('removeNode', delnode[0]);
+                                console.log("the after nodes are: " ,that.$el.tree('getTree'));
+                            }
                         });
                 }
             },
@@ -538,6 +553,7 @@
             yourcategory_id: 0,
             cse_id: 0,
             csecategory_id: 0,
+            id: this.cse_id,
 
             initialize: function () {
                 //pass
@@ -590,7 +606,77 @@
                         if (typeof (callback) !== "undefined") {callback(); }
                     });
                     
-            }
+            },
+
+            sync : function(method, model, options) {
+                var methodMap = {
+                    'create': 'POST',
+                    'update': 'PUT',
+                    'patch':  'PATCH',
+                    'delete': 'DELETE',
+                    'read':   'GET'
+                  };
+
+                var type = methodMap[method];
+
+                // Default options, unless specified.
+                _.defaults(options || (options = {}), {
+                  emulateHTTP: Backbone.emulateHTTP,
+                  emulateJSON: Backbone.emulateJSON
+                });
+
+                // Default JSON-request options.
+                var params = {type: type, dataType: 'json'};
+
+                // Ensure that we have a URL.
+                if (!options.url) {
+                  params.url = _.result(model, 'url') || urlError();
+                }
+
+                // Ensure that we have the appropriate request data.
+                if (options.data == null && model && (method === 'create' || method === 'update' || method === 'patch')) {
+                  params.contentType = 'application/json';
+                  params.data = JSON.stringify(options.attrs || model.toJSON(options));
+                }
+
+                // For older servers, emulate JSON by encoding the request into an HTML-form.
+                if (options.emulateJSON) {
+                  params.contentType = 'application/x-www-form-urlencoded';
+                  params.data = params.data ? {model: params.data} : {};
+                }
+
+                // For older servers, emulate HTTP by mimicking the HTTP method with `_method`
+                // And an `X-HTTP-Method-Override` header.
+                if (options.emulateHTTP && (type === 'PUT' || type === 'DELETE' || type === 'PATCH')) {
+                  params.type = 'POST';
+                  if (options.emulateJSON) params.data._method = type;
+                  var beforeSend = options.beforeSend;
+                  options.beforeSend = function(xhr) {
+                    xhr.setRequestHeader('X-HTTP-Method-Override', type);
+                    if (beforeSend) return beforeSend.apply(this, arguments);
+                  };
+                }
+
+                // Don't process data on a non-GET request.
+                if (params.type !== 'GET' && !options.emulateJSON) {
+                  params.processData = false;
+                }
+
+                // If we're sending a `PATCH` request, and we're in an old Internet Explorer
+                // that still has ActiveX enabled by default, override jQuery to use that
+                // for XHR instead. Remove this line when jQuery supports `PATCH` on IE8.
+                if (params.type === 'PATCH' && noXhrPatch) {
+                  params.xhr = function() {
+                    return new ActiveXObject("Microsoft.XMLHTTP");
+                  };
+                }
+
+                // Make the request, allowing the user to override any Ajax options.
+                var xhr = options.xhr = Backbone.ajax(_.extend(params, options));
+                model.trigger('request', model, xhr, options);
+                console.log(xhr, params, options);
+                return xhr;
+              }
         });
 
         var MapView = Backbone.View.extend({
@@ -615,7 +701,8 @@
                 this.cat = props.cat;
                 this.selectTag = props.selectTag;
                 $(this.button).click({that: this}, this.MapThisButtonClick); //Mapping Button
-                this.listenTo(this.cse.collection, "reset", this.collectionChanged);
+                //this.listenTo(this.cse.collection, "reset", this.collectionChanged);
+                $(this.selectTag).change({that: this}, this.collectionChanged); //select tag
                 var that = this;
                 that.collectionChanged();
             },
@@ -692,11 +779,13 @@
                     yourcategory_id: parseInt(e.currentTarget.dataset.cat)});
                 console.log(model, e.currentTarget.dataset.cse, e.currentTarget.dataset.cat);
 
-                // that.collection.sync("delete", that.collection.remove(model));
-                //that.collection.sync("delete", model);
-                model.destroy();
+                model.destroy({success: function(delmodel, response) {
+                    that.collection.sync("delete", model, {url: that.collection.url,
+                                                        data: JSON.stringify(model.toJSON())});
+                    console.log(delmodel, response);
+                }});
             },
-            
+
             paginationBtnClick : function (e) {
                 var that = e.data.that;
                 if (e.data.page === 'next') {
@@ -726,19 +815,30 @@
                 that.render();
             },
 
-            collectionChanged : function () {
+            collectionChanged : function (e) {
                 // fires when the cse collection has been reset (dropdown used)
-                this.collection.setURL(this.cse.collection.id);
-                this.collection.getStats();
-                var that = this;
+                console.log("collection reset event caught by mapping", e);
+                var that;
+                if(typeof(e) !== "undefined") {
+                    console.log("e.data.that");
+                    that = e.data.that;
+                } else {
+                    console.log("this");
+                    that = this;
+                }
+                console.log("made it out!");
+                that.collection.reset(null, {silent: true});
+                that.collection.setURL(that.cse.collection.id);
                 spinner.spin(spintarget);
-                that.collection.fetch()
+                that.collection.getStats(function () {
+                    that.collection.fetch()
                     .always(function () {
                         
                     })
                     .done(function (c, r) {
                         that.pages = Math.floor((r.length / that.items_per_page)) + 1;
                         that.render();
+                        console.log("the new collection is!: " , that.collection);
                     })
                     .fail(function () {
                         console.log("MAPPING LOAD FAIL");
@@ -746,6 +846,15 @@
                         that.pages = 1;
                         that.render();
                     });
+                });
+            },
+
+            cseChanged : function (e) {
+                // Function called when the select tag .change event is caught
+                /*console.log("CSE CHANGED, UPDATE MAPPING COLLECTION", arguments);
+                this.collection.cse_id = e.target.value;
+                var that = this;
+                this.collection.getStats(function () {that.render;});*/
             }
         });
 
