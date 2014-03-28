@@ -26,3 +26,18 @@ To do a POST do this:
 
 
 curl -v -X POST "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mappings/2" -d "[{\"yourcategory_id\":\"130224\","cse_id\":\"2\",\"csecategory_id\":\"82868\"}]" -H "Content-Type: application/json" -H "X-HTTP-Method-Override: POST"
+
+CSEROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategories/",
+        CSECHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategory/",
+        CSESTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/csecategorystats/",
+        CATROOTURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/categories",
+        CATCHILDURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/category/",
+        CATSTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/categorystats",
+        MAPSTATSURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mappingstats/", //<cse_id::integer> GET
+        MAPURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/mappings/", //<cse_id::integer> GET or POST or DELETE
+        DROPDOWNURL = "http://channelmanager.espsoftware.com/newadmin/api/v1.0/cse";
+
+
+
+
+        

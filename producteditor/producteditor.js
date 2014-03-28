@@ -26,7 +26,6 @@
 
   window.pedit = pedit;
 
-
   /* Models */
 
   pedit.Collection = Backbone.Collection.extend({

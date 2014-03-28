@@ -1,5 +1,4 @@
 /*jslint vars: true */
-/*jslint vars: true */
 /*Category mapping javascript
  *
  * Author: John Himics
@@ -8,11 +7,6 @@
  * 
  * 
  *
- * TODO:    
- *          Lazy-loading
-            The categories link seems to not return the right data from the server.
- *          Make sure mappings save properly, once API is built
- *          EMULATE HTTP option enable (get POST and DELETE to work)
  *
  * NOTES:   Every CSE has enable_tree_mappings = false ??
  *          
@@ -22,10 +16,8 @@
 /*jslint nomen: true */
 /*jslint browser: true*/
 /*jslint vars: true */
+/*jslint indent: 4 */
 /*globals $, jQuery, _, Backbone, console, Mustache, Spinner*/
-
-//test//
-
 
 /* This closure keeps your globals from leaking into the global
  * namespace but still makes them available to all of the code in the
@@ -34,8 +26,7 @@
     //"use strict";
     //EMULATE HTTP AND JSON
     Backbone.emulateHTTP = true;
-    //Backbone.emulateJSON = true;
-    
+
     /*Spin.js for initial loading*/
     var opts = {
             lines: 10, // The number of lines to draw
@@ -61,7 +52,6 @@
     spinner.spin(spintarget);
     // GLOBAL VARIABLES
     var LAZYLOADINGTHRESHHOLD = 20, CHILDPAGINGTHRESHHOLD = 6, CHILDPAGESIZE = 5;
-    
 
     // **TODO: rework the way URLs are configured. Utilise the URL
     // attribute as a function technique from Backbone to facilitate
@@ -80,26 +70,25 @@
 
     /* This is the preferred onDocumentReady syntax for jQuery at the moment. */
     $(function () {
-    
-	
+
+
         // add this to your namespace and have all of your collections inherit from it
         var JSON_HANDLER_COLLECTION = Backbone.Collection.extend({
             APIURL: "http://channelmanager.espsoftware.com/newadmin/api/v1.0/",
             stem: "",
             statsstem: "",
 
-            parse: function (resp, xhr) {
+            parse: function (resp) {
                 if (typeof (resp.results) !== "undefined") {
                     return resp.results;
                 } else if (typeof (resp.result) !== "undefined") {
                     return resp.result;
                 } else {
-                    console.log("no results array, returning resp");
                     return resp;
                 }
             },
 
-            //URL handler
+            //beginnings of a URL handler
             url: function () {
                 return this.APIURL + "/" + this.stem;
             },
@@ -109,18 +98,13 @@
             }
         });
         //*** TREE STRUCTURES
-        
+
         //DataModel - represents each node
         var TreeNode = Backbone.Model.extend({
             //defaults
             parent_id: 0,
             id: 0,
             name: "",
-
-            initialize: function () {
-                //pass
-            }
-
         });
 
         // Tree Collection - represents the tree
@@ -140,7 +124,6 @@
             paged: false,
 
             initialize: function (props) {
-                console.log("tree init");
                 var that = this;
                 // constructor values
                 that.rootURL = props.rootURL;
@@ -152,13 +135,9 @@
                 that.lazyLoadEnabled = that.TOTALNODES > LAZYLOADINGTHRESHHOLD;
                 that.childPagingEnabled = (that.lazyLoadEnabled &&
                                           that.MAXCHILDNODES > CHILDPAGINGTHRESHHOLD);
-
-                // get the stats (make this a model)
-                //that.getStats(); //**TODO put this in view so the callback can be render.
-
             },
 
-            update: function (id, callback) {
+            update: function (id) {
                 var that = this;
                 that.id = id;
                 that.url = that.rootURL + that.id;
@@ -173,32 +152,25 @@
                 spinner.spin(spintarget);
                 var stats = $.getJSON(that.statsURL)
                     .always(function () {
-                        
+                        spinner.stop();
                     })
                     .done(function () {
-                        spinner.stop();
                         if (typeof (stats.responseJSON.TOTALNODES) !== "undefined") {
                             that.TOTALNODES = stats.responseJSON.total_nodes;
                             that.MAXCHILDNODES = stats.responseJSON.max_child_nodes;
-                        } else {
-                            that.TOTALNODES = stats.responseJSON.results.total_nodes;
-                            that.MAXCHILDNODES = stats.responseJSON.results.max_child_nodes;
-                        } //TODO remove this, only exists because of inconsistent syntax
+                        }
 
                         that.load(null, 0);
                     })
                     .fail(function () {
-                        spinner.stop();
                         that.TOTALNODES = 1;
                         that.MAXCHILDNODES = 1;
                         that.load();
                     });
-                    
             },
 
             load: function (id, pagenum) {
             //Determines how to call the lazyload function.
-            //TODO add pagenum, page size to this function call.
                 var that = this;
 
                 //debugging
@@ -208,44 +180,34 @@
                 var xhr;
                 if (that.lazyLoadEnabled) {
                     if (typeof(id) === "number" && id !== 0) {
-                        console.log("LOAD - ID specified");
                         //There is an id specified, load that node's children
                         if (that.childPagingEnabled) {
                             //paging, load child one page at a time
-                            console.log("LOAD - paging, load child one page at a time");
                             xhr = that.lazyload(pagenum, that.page_size, id)
                                 .done( function () {
-                                console.log("LOAD - ", arguments);
                                 that.trigger("add", xhr);
                             });
                         } else {
                             //no paging, load all children
-                            console.log("LOAD - load all children");
                             xhr = that.lazyload(null, null, id)
                                 .done( function () {
-                                console.log("LOAD - ", arguments);
                                 that.trigger("add", xhr);
                             });
                         }
                     } else {
                         // no ID specified, load the root nodes
-                        console.log("LOAD - no ID specified, load the root nodes");
                         xhr = that.lazyload(pagenum, that.page_size, 0)
                         .done( function () {
-                            console.log("LOAD - ", arguments);
                             that.trigger("add");
                         });
                     }
                 } else {
                     if (typeof(id) === "number") {
                         //do nothing, clicked node is without children
-                        console.log("Nothing to do here.");
                     } else {
                         // Load the entire tree
-                        console.log("LOAD - Load the entire tree")
                         xhr = that.lazyload()
                             .done( function () {
-                                console.log("LOAD - ", arguments);
                                 that.trigger("reset");
                             });
                     }
@@ -268,15 +230,8 @@
                         }}
                 )
                     .always(function () {
-                        console.log("LazyLoad function", page_number, page_size, parent_id)
-                    })
-                    .done(function () {
                         spinner.stop();
                     })
-                    .fail(function () {
-                        spinner.stop();
-                        console.log("Tree Collection Load failed");
-                    });
                 
                 return xhr;
             }
@@ -323,20 +278,12 @@
                 
                 //load the collection
                 var that = this;
-                this.collection.getStats();
-            },
-            
-            syncRender : function () {
-                //console.log("Sync event caught");
-                //console.log(arguments);
+                that.collection.getStats();
             },
 
             render: function (resp) {
-                console.log("making data");
                 var treedata = this.getTreeData();
-                console.log("data made");
                 this.$el.tree('loadData', treedata);
-                console.log("data loaded");
             },
 
             events: {
@@ -382,7 +329,6 @@
                     }, that);
                     // add a "Load More" child if lazy loading is enabled
                     if(that.collection.lazyLoadEnabled === true) {
-                        console.log("Added a load more child");
                         data.push({"label" : "Load More",
                                                "id": -2 });
                     }
@@ -412,7 +358,6 @@
                     }, that);
 
                 if(that.collection.childPagingEnabled === true) {
-                    console.log("Added a child 'load more' child");
                     data.push({"label" : "Load More",
                                            "id": -3 });
                 }
@@ -420,35 +365,29 @@
             }, // recursive function to build tree data
 
             treeSelect : function (e) {
-                console.log("TreeSelect event caught");
                 e.preventDefault();
                 var node = e.node;
                 if (node !== null) {
                     $(this.selectedElement).html(node.name);
                 } else {
-                    console.log("deselected");
                     $(this.selectedElement).html("Nothing Selected");
                 }
             },
 
             treeOpen : function (e) {
-                console.log("Tree Open event caught");
                 e.preventDefault();
                 this.treeClick(e);
             },
             
             treeClose : function () {
-                console.log("Tree Close event caught");
             },
 
             treeClick : function (e) {
                 //prevent the default selection
                 e.preventDefault();
-                console.log("Tree click event caught");
                 var that = this;
                 var node = e.node;
                 var id = e.node.id;
-                console.log("node: ",node);
 
                 //select the node?
                 if (that.$el.tree('getSelectedNode') === node) {
@@ -462,34 +401,27 @@
 
                 if (node.children.length === 1) {
                     // only has one child, check if it's the placeholder
-                    if(node.children[0].id === -1) {
+                    if (node.children[0].id === -1) {
                         // it IS the placeholder, try to load the children
-                        console.log("TREECLICK - LOAD INIT CHILDREN");
                         loadChildren = true;
-                    } else if(node.children[0].id === -3) {
+                    } else if (node.children[0].id === -3) {
                         // it IS the placeholder, try to load the children
-                        console.log("TREECLICK - LOAD INIT CHILDREN - load more child exists");
                         loadChildren = true;
                     }
                 } else {
                     // try to load more children
-                    if(that.collection.childPagingEnabled === true) {
-                        console.log("TREECLICK - LOAD NEXT CHILD PAGE");
+                    if (that.collection.childPagingEnabled === true) {
                         loadChildren = true;
                     }
                 }
 
                 //if the load more child, then load more!
                 if (id === -2) {
-                    console.log("TREECLICK - ROOT LOAD MROE CHILD CLICKED");
-                    console.log(e);
                     e.data = {};
                     e.data= {that: that};
                     that.loadMoreRoot(e);
                     that.$el.tree('selectNode', null);
                 } else if (id === -3) {
-                    console.log("TREECLICK - CHILD LOAD MORE CHILD CLICKED");
-                    console.log("node: ",node);
                     node = node.parent;
                     id = node.id;
                     loadChildren = true;
@@ -499,33 +431,23 @@
                 if (loadChildren) {
                     that.$el.tree('openNode', node);
                     var state = that.$el.tree('getState');
-                    console.log("TREECLICK - Loading children!");
                     var pagenum = Math.floor(node.children.length / that.collection.page_size);
-                    console.log("page number: ", pagenum);
-                    console.log("Pagenum: ", pagenum);
                     that.collection.load(id, pagenum)
                         .done( function () {
                             //restore the tree state
-                            console.log(".done arguements are: ", arguments);
                             that.$el.tree('setState', state);
                             if(arguments[0].results.length < that.collection.page_size) {
                                 //delete the "load more" node
                                 //find the node
                                 var delnode = _.where(that.$el.tree('getTree').children, {name: node.name});
-                                    console.log(delnode);
                                     delnode = _.where(delnode[0].children, {name: "Load More"});
-                                    console.log(delnode);
-                                console.log("the nodes are: " , node, delnode[0]);
                                 that.$el.tree('removeNode', delnode[0]);
-                                console.log("the after nodes are: " ,that.$el.tree('getTree'));
                             }
                         });
                 }
             },
             
             loadMoreRoot : function (e) {
-                console.log(e, e.data.that);
-
                 var thatview = e.data.that;
                 thatview.collection.page_num += 1;
                 var pagenum = Math.floor(thatview.collection.where({parent_id: 0}).length / thatview.collection.page_size)
@@ -554,10 +476,6 @@
             cse_id: 0,
             csecategory_id: 0,
             id: this.cse_id,
-
-            initialize: function () {
-                //pass
-            }
         });
 
         var MapCollection = JSON_HANDLER_COLLECTION.extend({
@@ -577,7 +495,6 @@
                 this.rooturl = props.mapurl;
                 this.rootStatsURL = props.rootStatsURL;
                 this.setURL(this.cse_id);
-                
 
                 this.getStats(); //get the stats
             },
@@ -592,91 +509,18 @@
                 spinner.spin(spintarget);
                 var stats = $.getJSON(that.statsURL)
                     .always(function () {
-                        
+                        spinner.stop();
                     })
                     .done(function () {
-                        spinner.stop();
                         that.total_mappings = stats.responseJSON.total_mappings;
                         if (typeof (callback) !== "undefined") {callback(); }
                     })
                     .fail(function () {
-                        console.log("Mapping Stats fetch error");
-                        spinner.stop();
                         that.total_mappings = 0;
                         if (typeof (callback) !== "undefined") {callback(); }
                     });
                     
             },
-
-            sync : function(method, model, options) {
-                var methodMap = {
-                    'create': 'POST',
-                    'update': 'PUT',
-                    'patch':  'PATCH',
-                    'delete': 'DELETE',
-                    'read':   'GET'
-                  };
-
-                var type = methodMap[method];
-
-                // Default options, unless specified.
-                _.defaults(options || (options = {}), {
-                  emulateHTTP: Backbone.emulateHTTP,
-                  emulateJSON: Backbone.emulateJSON
-                });
-
-                // Default JSON-request options.
-                var params = {type: type, dataType: 'json'};
-
-                // Ensure that we have a URL.
-                if (!options.url) {
-                  params.url = _.result(model, 'url') || urlError();
-                }
-
-                // Ensure that we have the appropriate request data.
-                if (options.data == null && model && (method === 'create' || method === 'update' || method === 'patch')) {
-                  params.contentType = 'application/json';
-                  params.data = JSON.stringify(options.attrs || model.toJSON(options));
-                }
-
-                // For older servers, emulate JSON by encoding the request into an HTML-form.
-                if (options.emulateJSON) {
-                  params.contentType = 'application/x-www-form-urlencoded';
-                  params.data = params.data ? {model: params.data} : {};
-                }
-
-                // For older servers, emulate HTTP by mimicking the HTTP method with `_method`
-                // And an `X-HTTP-Method-Override` header.
-                if (options.emulateHTTP && (type === 'PUT' || type === 'DELETE' || type === 'PATCH')) {
-                  params.type = 'POST';
-                  if (options.emulateJSON) params.data._method = type;
-                  var beforeSend = options.beforeSend;
-                  options.beforeSend = function(xhr) {
-                    xhr.setRequestHeader('X-HTTP-Method-Override', type);
-                    if (beforeSend) return beforeSend.apply(this, arguments);
-                  };
-                }
-
-                // Don't process data on a non-GET request.
-                if (params.type !== 'GET' && !options.emulateJSON) {
-                  params.processData = false;
-                }
-
-                // If we're sending a `PATCH` request, and we're in an old Internet Explorer
-                // that still has ActiveX enabled by default, override jQuery to use that
-                // for XHR instead. Remove this line when jQuery supports `PATCH` on IE8.
-                if (params.type === 'PATCH' && noXhrPatch) {
-                  params.xhr = function() {
-                    return new ActiveXObject("Microsoft.XMLHTTP");
-                  };
-                }
-
-                // Make the request, allowing the user to override any Ajax options.
-                var xhr = options.xhr = Backbone.ajax(_.extend(params, options));
-                model.trigger('request', model, xhr, options);
-                console.log(xhr, params, options);
-                return xhr;
-              }
         });
 
         var MapView = Backbone.View.extend({
@@ -701,7 +545,6 @@
                 this.cat = props.cat;
                 this.selectTag = props.selectTag;
                 $(this.button).click({that: this}, this.MapThisButtonClick); //Mapping Button
-                //this.listenTo(this.cse.collection, "reset", this.collectionChanged);
                 $(this.selectTag).change({that: this}, this.collectionChanged); //select tag
                 var that = this;
                 that.collectionChanged();
@@ -728,7 +571,6 @@
                                 csename = placeholder.attributes.name;
                             } else {
                                 csename = "Name Undefined";
-                                console.log("Placeholder was undefined");
                             }
                             var catname = "";
                             placeholder = that.cat.collection.where({id: parseInt(catid, 10)})[0];
@@ -736,7 +578,6 @@
                                 catname = placeholder.attributes.name;
                             } else {
                                 catname = "Name Undefined";
-                                console.log("Placeholder was undefined");
                             }
 
                             var nameObj = {csecategory_id: cseid,
@@ -772,17 +613,12 @@
             },
 
             deleteLinkClicked : function (e) {
-                console.log(e);
                 var that = e.data.that;
-                console.log(that.collection);
                 var model = that.collection.findWhere({csecategory_id: parseInt(e.currentTarget.dataset.cse),
                     yourcategory_id: parseInt(e.currentTarget.dataset.cat)});
-                console.log(model, e.currentTarget.dataset.cse, e.currentTarget.dataset.cat);
-
                 model.destroy({success: function(delmodel, response) {
                     that.collection.sync("delete", model, {url: that.collection.url,
                                                         data: JSON.stringify(model.toJSON())});
-                    console.log(delmodel, response);
                 }});
             },
 
@@ -795,7 +631,6 @@
                 } else {
                     that.page = parseInt(e.currentTarget.innerHTML, 10);
                 }
-                console.log(that.page);
                 that.render();
             },
 
@@ -809,24 +644,18 @@
                 var newMapping = {"yourcategory_id" : selectedCat.id,
                                   "cse_id" : parentID,
                                   "csecategory_id" : selectedCSE.id};
-                console.log(newMapping);
                 var newModel = that.collection.create(newMapping);
-                console.log(newModel);
                 that.render();
             },
 
             collectionChanged : function (e) {
                 // fires when the cse collection has been reset (dropdown used)
-                console.log("collection reset event caught by mapping", e);
                 var that;
                 if(typeof(e) !== "undefined") {
-                    console.log("e.data.that");
                     that = e.data.that;
                 } else {
-                    console.log("this");
                     that = this;
                 }
-                console.log("made it out!");
                 that.collection.reset(null, {silent: true});
                 that.collection.setURL(that.cse.collection.id);
                 spinner.spin(spintarget);
@@ -838,24 +667,14 @@
                     .done(function (c, r) {
                         that.pages = Math.floor((r.length / that.items_per_page)) + 1;
                         that.render();
-                        console.log("the new collection is!: " , that.collection);
                     })
                     .fail(function () {
-                        console.log("MAPPING LOAD FAIL");
                         spinner.stop();
                         that.pages = 1;
                         that.render();
                     });
                 });
             },
-
-            cseChanged : function (e) {
-                // Function called when the select tag .change event is caught
-                /*console.log("CSE CHANGED, UPDATE MAPPING COLLECTION", arguments);
-                this.collection.cse_id = e.target.value;
-                var that = this;
-                this.collection.getStats(function () {that.render;});*/
-            }
         });
 
         //*** DROPDOWN STRUCTURES
@@ -890,7 +709,7 @@
                         $(that.el).html(output);
                     })
                     .fail(function () {
-                        console.log("Select Box fetch failed");
+                        //Select Box fetch failed
                     });
             },
 
